@@ -321,3 +321,70 @@ class FullAnalysisResponse(BaseModel):
     action_items: list[ActionItemOut]
     summary: Optional[SummaryOut]
 
+
+# ──────────────────────────── Vector Database & Semantic Memory ───────
+
+class SemanticMemoryOut(BaseModel):
+    id: str
+    session_id: str
+    user_id: str
+    category: str
+    speaker_label: str
+    speaker_role: str
+    content: str
+    semantic_context: Optional[str] = None
+    semantic_tags: list[str] = []
+    related_memory_ids: list[str] = []
+    similarity_graph: dict = {}
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class SemanticSearchRequest(BaseModel):
+    query: str
+    top_k: Optional[int] = 6
+    category: Optional[str] = None
+    speaker_filter: Optional[str] = None
+    exclude_session_id: Optional[str] = None
+
+
+class SemanticSearchResultItem(BaseModel):
+    id: str
+    session_id: str
+    session_title: str
+    session_date: str
+    category: str
+    speaker_label: str
+    speaker_role: str
+    content: str
+    semantic_context: Optional[str] = None
+    semantic_tags: list[str] = []
+    similarity: float
+    related_memory_ids: list[str] = []
+    similarity_graph: dict = {}
+
+
+class SemanticSearchResponse(BaseModel):
+    query: str
+    results_count: int
+    results: list[SemanticSearchResultItem]
+
+
+class VectorizeSessionResponse(BaseModel):
+    session_id: str
+    indexed_count: int
+    status: str
+
+
+class MultiSpeakerUtteranceSubmit(BaseModel):
+    speaker_label: str
+    text: str
+    speaker_role: Optional[str] = "screen_attender"  # screen_attender | host | participant | lead
+    audio_channel: Optional[str] = "screen_audio"  # screen_audio | user_mic
+    timestamp_start: Optional[float] = None
+    timestamp_end: Optional[float] = None
+    confidence: Optional[float] = 0.95
+    source_type: Optional[str] = "screen_attender"
+
+

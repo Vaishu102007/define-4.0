@@ -71,6 +71,9 @@ class Session(Base):
     audit_events: Mapped[list["AuditEvent"]] = relationship(
         "AuditEvent", back_populates="session", cascade="all, delete-orphan"
     )
+    semantic_memories: Mapped[list["MeetingSemanticMemory"]] = relationship(
+        "MeetingSemanticMemory", back_populates="session", cascade="all, delete-orphan"
+    )
 
 
 class TranscriptSegment(Base):
@@ -79,10 +82,12 @@ class TranscriptSegment(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
     session_id: Mapped[str] = mapped_column(String(36), ForeignKey("sessions.id"), nullable=False, index=True)
     speaker_label: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    speaker_role: Mapped[str | None] = mapped_column(String(50), default="screen_attender")  # screen_attender | host | participant
+    audio_channel: Mapped[str | None] = mapped_column(String(50), default="screen_audio")  # screen_audio | user_mic
     text: Mapped[str] = mapped_column(Text, nullable=False)
     timestamp_start: Mapped[float | None] = mapped_column(Float, nullable=True)
     timestamp_end: Mapped[float | None] = mapped_column(Float, nullable=True)
-    source_type: Mapped[str] = mapped_column(String(50), default="paste")  # paste | manual | audio
+    source_type: Mapped[str] = mapped_column(String(50), default="screen_attender")  # screen_attender | mic_user | paste | audio
     confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
@@ -190,4 +195,41 @@ class IntegrationConnection(Base):
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
+class MeetingSemanticMemory(Base):
+    __tablename__ = "meeting_semantic_memories"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    session_id: Mapped[str] = mapped_column(String(36), ForeignKey("sessions.id"), nullable=False, index=True)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    category: Mapped[str] = mapped_column(String(50), nullable=False)  # important_point | key_decision | action_item | qa_pair | speaker_statement | summary_point
+    speaker_label: Mapped[str] = mapped_column(String(100), nullable=False, default="Attender")  # Person who said or committed (e.g. Sarah Chen (VP Engineering))
+    speaker_role: Mapped[str] = mapped_column(String(50), default="screen_attender")  # screen_attender | host | lead | procurement | client
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    semantic_context: Mapped[str | None] = mapped_column(Text, nullable=True)
+    embedding: Mapped[list | None] = mapped_column(JSON, nullable=True)  # Dense vector embedding values
+    embedding_dim: Mapped[int] = mapped_column(Integer, default=128)
+    semantic_tags: Mapped[list | None] = mapped_column(JSON, nullable=True)  # Categorical tags / entity keywords
+    related_memory_ids: Mapped[list | None] = mapped_column(JSON, nullable=True)  # Semantic links to memories from past/current sessions
+    similarity_graph: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # {memory_id: similarity_score}
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    session: Mapped["Session"] = relationship("Session", back_populates="semantic_memories")
+
+
+class AttendeeVoiceProfile(Base):
+    __tablename__ = "attendee_voice_profiles"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    speaker_name: Mapped[str] = mapped_column(String(150), nullable=False)
+    speaker_title: Mapped[str | None] = mapped_column(String(150), nullable=True)  # e.g., "VP Engineering", "Procurement Lead"
+    screen_position_index: Mapped[int | None] = mapped_column(Integer, default=0)
+    voice_signature_embedding: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    total_utterances: Mapped[int] = mapped_column(Integer, default=0)
+    total_key_points_spoken: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
 

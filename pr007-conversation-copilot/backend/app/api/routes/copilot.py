@@ -1,19 +1,21 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, and_
 
 from app.db.database import get_db
-from app.models.models import Session, User, TranscriptSegment, Insight, ActionItem
+from app.models.models import Session, User, TranscriptSegment, Insight, ActionItem, SessionSummary, MeetingSemanticMemory, AttendeeVoiceProfile
 from app.schemas.schemas import (
     TranscriptSubmit, TranscriptSegmentOut,
     InsightOut, InsightFeedback,
     ActionItemCreate, ActionItemUpdate, ActionItemOut,
     SummaryOut, SummaryUpdate,
     QuestionAnswerRequest, QuestionAnswerResponse,
+    SemanticMemoryOut, SemanticSearchRequest, SemanticSearchResponse, SemanticSearchResultItem,
+    VectorizeSessionResponse, MultiSpeakerUtteranceSubmit
 )
 from app.security.auth import get_current_user
 from app.services.providers.ai_adapter import generate_insights, generate_summary, generate_easy_answer
-from app.models.models import SessionSummary
+from app.services.vector_db_service import VectorDatabaseService
 
 router = APIRouter(prefix="/api/v1/sessions", tags=["copilot"])
 
@@ -426,3 +428,192 @@ async def update_summary(
     await db.commit()
     await db.refresh(summary)
     return summary
+
+
+# ──────────────────────────── Vector Database & Semantic Memory ────────
+
+@router.post("/semantic-search", response_model=SemanticSearchResponse)
+async def semantic_search_meetings(
+    payload: SemanticSearchRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Semantic Vector Search across previous meetings.
+    Finds semantically related key points, decisions, commitments, Q&A, and speaker quotes
+    using continuous-space vector embeddings and cosine similarity.
+    """
+    results = await VectorDatabaseService.semantic_search(
+        db=db,
+        user_id=current_user.id,
+        query=payload.query,
+        top_k=payload.top_k or 6,
+        category=payload.category,
+        speaker_filter=payload.speaker_filter,
+        exclude_session_id=payload.exclude_session_id,
+    )
+    return SemanticSearchResponse(
+        query=payload.query,
+        results_count=len(results),
+        results=[
+            SemanticSearchResultItem(
+                id=r["id"],
+                session_id=r["session_id"],
+                session_title=r["session_title"],
+                session_date=r["session_date"],
+                category=r["category"],
+                speaker_label=r["speaker_label"],
+                speaker_role=r["speaker_role"],
+                content=r["content"],
+                semantic_context=r["semantic_context"],
+                semantic_tags=r["semantic_tags"],
+                similarity=r["similarity"],
+                related_memory_ids=r["related_memory_ids"],
+                similarity_graph=r["similarity_graph"],
+            )
+            for r in results
+        ],
+    )
+
+
+@router.post("/{session_id}/vectorize", response_model=VectorizeSessionResponse)
+async def vectorize_session_memories(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Extracts all key points, decisions, actions, Q&As, and speaker transcripts from a session,
+    generates dense vector embeddings, and stores them in the vector database with semantic links.
+    """
+    session = await _get_active_session(session_id, current_user, db)
+    result = await VectorDatabaseService.vectorize_entire_session(
+        db=db,
+        session_id=session.id,
+        user_id=current_user.id,
+    )
+    return VectorizeSessionResponse(
+        session_id=session.id,
+        indexed_count=result["indexed_count"],
+        status=result["status"],
+    )
+
+
+@router.get("/{session_id}/semantic-memory", response_model=list[SemanticMemoryOut])
+async def get_session_semantic_memory(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Fetches all vector memory records and their semantic relational links for a specific meeting.
+    """
+    await _get_active_session(session_id, current_user, db)
+    stmt = select(MeetingSemanticMemory).where(
+        MeetingSemanticMemory.session_id == session_id
+    ).order_by(MeetingSemanticMemory.created_at.desc())
+    result = await db.execute(stmt)
+    memories = result.scalars().all()
+    return memories
+
+
+@router.post("/{session_id}/speaker-utterance", response_model=TranscriptSegmentOut, status_code=201)
+async def ingest_speaker_utterance(
+    session_id: str,
+    payload: MultiSpeakerUtteranceSubmit,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Ingests live spoken transcripts with precise speaker attribution (both for the host/user
+    and for any on-screen attendee speaking in the meeting).
+    Stores speaker labels, roles, and automatically indexes key statements into the Vector Database.
+    """
+    session = await _get_active_session(session_id, current_user, db)
+    
+    seg = TranscriptSegment(
+        session_id=session_id,
+        speaker_label=payload.speaker_label,
+        speaker_role=payload.speaker_role or "screen_attender",
+        audio_channel=payload.audio_channel or "screen_audio",
+        text=payload.text,
+        source_type=payload.source_type or "screen_attender",
+        timestamp_start=payload.timestamp_start,
+        timestamp_end=payload.timestamp_end,
+        confidence=payload.confidence or 0.95,
+    )
+    db.add(seg)
+    await db.commit()
+    await db.refresh(seg)
+
+    # Check for questions to surface instant Easy Answer
+    easy_answer_data = None
+    lower = payload.text.strip().lower()
+    is_question = (
+        "?" in payload.text
+        or any(lower.startswith(w) for w in ["what", "how", "why", "when", "where", "can we", "could we", "is there", "will", "do you", "does", "would"])
+        or any(w in lower for w in ["pricing", "cost", "sla", "budget", "compliance", "timeline", "architecture", "security", "failover"])
+    )
+
+    if is_question:
+        easy_answer_data = await generate_easy_answer(
+            question=payload.text,
+            objective=session.objective,
+            session_mode=session.mode,
+            speaker_label=payload.speaker_label or "Attender"
+        )
+        qa_insight = Insight(
+            session_id=session_id,
+            type="response_suggestion",
+            content=f"Q ({payload.speaker_label}): {payload.text}\n→ Easy Answer: {easy_answer_data['easy_answer']}",
+            confidence_label=easy_answer_data.get("confidence_label", "high"),
+            objective_alignment=easy_answer_data.get("objective_alignment", "supports_goal"),
+            evidence_refs={
+                "question": payload.text,
+                "speaker": payload.speaker_label,
+                "easy_answer": easy_answer_data["easy_answer"],
+                "talking_points": easy_answer_data.get("talking_points", []),
+            }
+        )
+        db.add(qa_insight)
+        await db.commit()
+
+        # Vectorize this Q&A into the vector DB immediately
+        await VectorDatabaseService.index_semantic_memory(
+            db=db,
+            session_id=session_id,
+            user_id=current_user.id,
+            category="qa_pair",
+            speaker_label=payload.speaker_label,
+            speaker_role=payload.speaker_role or "screen_attender",
+            content=f"Question: {payload.text}\nAnswer: {easy_answer_data['easy_answer']}",
+            semantic_context=f"Meeting: {session.title} | Objective: {session.objective or ''}",
+            semantic_tags=["qa", payload.speaker_label, "live_attender"]
+        )
+
+    # If it is a substantive statement (> 30 chars), index it into Vector DB
+    elif len(payload.text.strip()) > 30:
+        await VectorDatabaseService.index_semantic_memory(
+            db=db,
+            session_id=session_id,
+            user_id=current_user.id,
+            category="speaker_statement",
+            speaker_label=payload.speaker_label,
+            speaker_role=payload.speaker_role or "screen_attender",
+            content=payload.text,
+            semantic_context=f"Meeting: {session.title} | Speaker: {payload.speaker_label}",
+            semantic_tags=["utterance", payload.speaker_label, payload.speaker_role or "screen_attender"]
+        )
+
+    return TranscriptSegmentOut(
+        id=seg.id,
+        speaker_label=seg.speaker_label,
+        text=seg.text,
+        timestamp_start=seg.timestamp_start,
+        timestamp_end=seg.timestamp_end,
+        source_type=seg.source_type,
+        created_at=seg.created_at,
+        easy_answer=easy_answer_data["easy_answer"] if easy_answer_data else None,
+        talking_points=easy_answer_data.get("talking_points") if easy_answer_data else None,
+    )
+

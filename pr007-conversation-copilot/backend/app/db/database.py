@@ -31,6 +31,20 @@ async def get_db():
             await session.close()
 
 
+from sqlalchemy import text
+
+
 async def create_tables():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Safe automatic migration for existing databases
+        migrations = [
+            "ALTER TABLE transcript_segments ADD COLUMN speaker_role VARCHAR(64) DEFAULT 'host'",
+            "ALTER TABLE transcript_segments ADD COLUMN audio_channel VARCHAR(64) DEFAULT 'user_mic'",
+            "ALTER TABLE transcript_segments ADD COLUMN confidence FLOAT DEFAULT 1.0",
+        ]
+        for m in migrations:
+            try:
+                await conn.execute(text(m))
+            except Exception:
+                pass

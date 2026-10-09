@@ -1319,21 +1319,30 @@
 
       // 1. Optimistic UI insertion — ensure words appear immediately even if network has lag
       const tempId = 'temp-' + Date.now();
+      const isHost = speaker.toLowerCase().includes('host') || speaker.toLowerCase().includes('you');
+      const speakerRole = isHost ? 'host' : 'screen_attender';
+      const audioChannel = isHost ? 'user_mic' : 'screen_audio';
+
       const optimisticSeg = {
         id: tempId,
         speaker_label: speaker,
+        speaker_role: speakerRole,
+        audio_channel: audioChannel,
         text: text,
-        source_type: 'audio',
+        source_type: speakerRole,
         created_at: new Date().toISOString()
       };
       addTranscriptSegmentToUI(optimisticSeg);
 
-      // 2. Submit to backend
+      // 2. Submit to backend multi-speaker pipeline & Vector Database
       try {
-        const segment = await api.transcript.submit(sessionId, {
+        const segment = await api.vector.submitSpeakerUtterance(sessionId, {
           speaker_label: speaker,
+          speaker_role: speakerRole,
+          audio_channel: audioChannel,
           text: text,
-          source_type: 'audio',
+          source_type: speakerRole,
+          confidence: 0.96
         });
 
         // Update dataset.id with server ID
@@ -1353,7 +1362,7 @@
             confidence_label: 'high',
           });
           switchSidebarTab('easy-answers');
-          toast(`⚡ Easy Answer ready for ${speaker}'s question!`, 'success', 4000);
+          toast(`Easy Answer ready for ${speaker}'s question!`, 'success', 4000);
         }
 
         // Periodically refresh insights & coverage meter

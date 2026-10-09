@@ -264,10 +264,35 @@ export const api = {
         throw new Error(msg);
       }
 
-      const blob = await resp.blob();
-      return URL.createObjectURL(blob);
-    },
+  // ── Vector Database & Semantic Memory ──────────────────────────────
+  vector: {
+    semanticSearch: (query, topK = 6, category = null, speakerFilter = null, excludeSessionId = null) =>
+      apiFetch('/api/v1/sessions/semantic-search', {
+        method: 'POST',
+        body: JSON.stringify({
+          query,
+          top_k: topK,
+          category,
+          speaker_filter: speakerFilter,
+          exclude_session_id: excludeSessionId,
+        }),
+      }),
+
+    vectorize: (sessionId) =>
+      apiFetch(`/api/v1/sessions/${sessionId}/vectorize`, {
+        method: 'POST',
+      }),
+
+    getMemory: (sessionId) =>
+      apiFetch(`/api/v1/sessions/${sessionId}/semantic-memory`),
+
+    submitSpeakerUtterance: (sessionId, payload) =>
+      apiFetch(`/api/v1/sessions/${sessionId}/speaker-utterance`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
   },
 };
+
 
 
