@@ -54,6 +54,11 @@ export const api = {
       }),
 
     me: () => apiFetch('/api/v1/auth/me'),
+
+    logout: () => {
+      localStorage.removeItem('copilot_token');
+      localStorage.removeItem('copilot_user');
+    },
   },
 
   // ── Sessions ──────────────────────────────────────────────────────────

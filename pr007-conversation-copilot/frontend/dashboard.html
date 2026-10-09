@@ -233,6 +233,14 @@
     import { api } from '/js/api.js';
     import { toast, showModal, closeModal, setLoading, timeAgo, escapeHtml } from '/js/components/ui.js';
 
+    function formatIsoDate(d) {
+      if (!d) return '';
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
     // Auth guard
     if (!localStorage.getItem('copilot_token')) {
       window.location.href = '/';

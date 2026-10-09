@@ -1155,9 +1155,19 @@
       const btn = document.getElementById('btn-submit-login');
       btn.textContent = 'Signing in as Demo User…';
       try {
-        const { access_token } = await api.auth.login('demo@copilot.ai', 'demopassword123');
-        localStorage.setItem('copilot_token', access_token);
-        window.location.href = '/dashboard';
+        let token = null;
+        try {
+          const res = await api.auth.login('demo@copilot.ai', 'demopassword123');
+          token = res.access_token;
+        } catch {
+          await api.auth.register('demo@copilot.ai', 'Demo Host', 'demopassword123');
+          const res = await api.auth.login('demo@copilot.ai', 'demopassword123');
+          token = res.access_token;
+        }
+        if (token) {
+          localStorage.setItem('copilot_token', token);
+          window.location.href = '/dashboard';
+        }
       } catch (err) {
         errEl.textContent = 'Login: ' + err.message;
         errEl.style.display = 'block';
