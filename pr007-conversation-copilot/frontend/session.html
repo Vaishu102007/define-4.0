@@ -121,6 +121,7 @@
             <div class="audio-wave">
               <span></span><span></span><span></span><span></span>
             </div>
+          </div>
           <div id="hand-raised-badge-local" style="display:none;position:absolute;top:10px;right:10px;z-index:10;background:#eab308;color:#000000;font-weight:900;font-size:0.72rem;padding:3px 10px;border-radius:20px;box-shadow:0 0 16px rgba(234,179,8,0.7);align-items:center;gap:4px">
             <span>✋</span> HAND RAISED
           </div>
@@ -217,7 +218,7 @@
 
             <div class="transcript-search-group" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
               <div class="search-input-wrap">
-                <span class="search-icon" style="font-size:0.72rem;font-weight:700;color:var(--clr-text-muted)">FIND</span>
+                <span class="search-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></span>
                 <input type="text" id="transcript-search-input" placeholder="Find in transcript…" oninput="filterTranscript(this.value)" />
               </div>
               <select id="transcript-speaker-filter" class="speaker-filter-select" onchange="filterTranscript()">
