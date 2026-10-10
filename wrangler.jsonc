@@ -8,7 +8,7 @@
   "main": "worker.js",
   "assets": {
     "directory": "./dist",
-    "html_handling": "none"
+    "binding": "ASSETS"
   },
   "vars": {
     "APP_NAME": "Nimad — AI Conversation Copilot",
