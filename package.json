@@ -1,0 +1,9 @@
+{
+  "name": "define",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DEFINE 4.0 - Nimad AI Conversation Copilot",
+  "scripts": {
+    "build": "node -e \"const fs=require('fs'); if(!fs.existsSync('dist')) fs.mkdirSync('dist'); fs.cpSync('pr007-conversation-copilot/frontend', 'dist', {recursive: true}); console.log('Static site built in dist');\""
+  }
+}

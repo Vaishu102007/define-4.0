@@ -1,0 +1,9 @@
+{
+  "name": "frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Nimad Frontend",
+  "scripts": {
+    "build": "echo 'Frontend static site ready'"
+  }
+}
