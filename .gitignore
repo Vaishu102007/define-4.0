@@ -45,3 +45,6 @@ desktop.ini
 gh_cli/
 cloudflare/bin/
 
+
+pr007-conversation-copilot/cloudflare/bin/
+*.exe
