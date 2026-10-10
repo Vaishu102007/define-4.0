@@ -1083,11 +1083,116 @@
   font-weight: 800;
 }
 
-/* ── Responsive ── */
+/* ── Responsive & Mobile App Styles ── */
 @media (max-width: 1024px) {
   .session-layout { grid-template-columns: 1fr; grid-template-rows: auto 55vh auto 40vh; height: auto; }
   .meeting-stage { grid-column: 1; grid-row: 2; border-right: none; border-bottom: 1px solid var(--clr-border); }
   .meeting-dock { grid-column: 1; grid-row: 3; }
   .session-sidebar { grid-column: 1; grid-row: 4; }
 }
+
+@media (max-width: 768px) {
+  html, body {
+    height: 100dvh !important;
+    overflow: hidden !important;
+  }
+
+  .meeting-topbar {
+    padding: 4px 8px;
+    height: 46px;
+    min-height: 46px;
+    gap: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .meeting-topbar::-webkit-scrollbar { display: none; }
+
+  .meeting-topbar .meeting-title {
+    max-width: 110px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.75rem;
+  }
+
+  .meeting-speaker-picker,
+  .meeting-lang-picker {
+    display: none !important;
+  }
+
+  .session-layout {
+    display: flex !important;
+    flex-direction: column !important;
+    height: calc(100dvh - 46px) !important;
+    overflow: hidden;
+  }
+
+  .meeting-stage {
+    flex: 1 1 auto;
+    height: auto !important;
+    overflow-y: auto;
+    padding: 8px;
+    border-right: none;
+    border-bottom: 1px solid var(--clr-border);
+  }
+
+  .video-grid {
+    grid-template-columns: 1fr !important;
+    gap: 8px;
+  }
+
+  .participant-tile {
+    min-height: 120px;
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+
+  .session-sidebar {
+    flex: 1 1 45%;
+    min-height: 200px;
+    max-height: 45vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #000000;
+    border-top: 1px solid var(--clr-border);
+  }
+
+  .meeting-dock {
+    height: auto;
+    min-height: 60px;
+    padding: 6px 10px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    background: #09090b;
+    border-top: 1px solid var(--clr-border);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+  .meeting-dock::-webkit-scrollbar { display: none; }
+
+  .dock-group {
+    flex-shrink: 0;
+    gap: 4px;
+  }
+
+  .dock-btn {
+    min-width: 48px;
+    padding: 4px 6px;
+  }
+
+  .dock-btn span {
+    font-size: 0.65rem;
+  }
+
+  .live-captions-banner {
+    left: 8px;
+    right: 8px;
+    width: auto;
+    max-width: none;
+    bottom: 68px;
+  }
+}
+
 

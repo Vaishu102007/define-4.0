@@ -136,10 +136,12 @@ if os.path.exists(frontend_path):
     no_cache_headers = {"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
 
     @app.get("/", response_class=FileResponse)
+    @app.get("/index.html", response_class=FileResponse)
     async def serve_index():
         return FileResponse(os.path.join(frontend_path, "index.html"), headers=no_cache_headers)
 
     @app.get("/login", response_class=FileResponse)
+    @app.get("/login.html", response_class=FileResponse)
     async def serve_login():
         login_file = os.path.join(frontend_path, "login.html")
         if os.path.exists(login_file):
@@ -147,15 +149,19 @@ if os.path.exists(frontend_path):
         return FileResponse(os.path.join(frontend_path, "index.html"), headers=no_cache_headers)
 
     @app.get("/dashboard", response_class=FileResponse)
+    @app.get("/dashboard.html", response_class=FileResponse)
     async def serve_dashboard():
         return FileResponse(os.path.join(frontend_path, "dashboard.html"), headers=no_cache_headers)
 
     @app.get("/integrations", response_class=FileResponse)
+    @app.get("/integrations.html", response_class=FileResponse)
     async def serve_integrations():
         return FileResponse(os.path.join(frontend_path, "integrations.html"), headers=no_cache_headers)
 
+    @app.get("/session", response_class=FileResponse)
+    @app.get("/session.html", response_class=FileResponse)
     @app.get("/session/{session_id}", response_class=FileResponse)
-    async def serve_session(session_id: str):
+    async def serve_session(session_id: str = None):
         return FileResponse(os.path.join(frontend_path, "session.html"), headers=no_cache_headers)
 
     @app.get("/config.js", response_class=FileResponse)
@@ -164,5 +170,31 @@ if os.path.exists(frontend_path):
         if os.path.exists(config_path):
             return FileResponse(config_path, media_type="application/javascript", headers=no_cache_headers)
         return Response(content="// no custom config", media_type="application/javascript")
+
+    @app.get("/manifest.json", response_class=FileResponse)
+    async def serve_manifest():
+        manifest_path = os.path.join(frontend_path, "manifest.json")
+        if os.path.exists(manifest_path):
+            return FileResponse(manifest_path, media_type="application/manifest+json")
+        return Response(status_code=404)
+
+    @app.get("/sw.js", response_class=FileResponse)
+    async def serve_sw():
+        sw_path = os.path.join(frontend_path, "sw.js")
+        if os.path.exists(sw_path):
+            return FileResponse(sw_path, media_type="application/javascript", headers=no_cache_headers)
+        return Response(status_code=404)
+
+    @app.get("/{file_path:path}", response_class=FileResponse)
+    async def serve_static_fallback(file_path: str):
+        if file_path.startswith("api/") or file_path in ["healthz", "docs", "redoc", "openapi.json"]:
+            return Response(content='{"detail":"Not Found"}', status_code=404, media_type="application/json")
+        candidate = os.path.join(frontend_path, file_path)
+        if os.path.isfile(candidate):
+            return FileResponse(candidate, headers=no_cache_headers)
+        html_candidate = os.path.join(frontend_path, f"{file_path}.html")
+        if os.path.isfile(html_candidate):
+            return FileResponse(html_candidate, headers=no_cache_headers)
+        return Response(content='{"detail":"Not Found"}', status_code=404, media_type="application/json")
 
 

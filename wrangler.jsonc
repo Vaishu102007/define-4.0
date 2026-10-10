@@ -1,18 +1,36 @@
+/**
+ * Cloudflare Wrangler Configuration
+ * Project: DEFINE 4.0 / Nimad AI Conversation Copilot
+ *
+ * Deployment:
+ * - Local preview:  npx wrangler dev
+ * - Production:     npx wrangler deploy
+ */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "define-4-0",
-  "compatibility_date": "2024-04-01",
+  "name": "nimad",
+  "main": "./worker.js",
+  "compatibility_date": "2026-04-01",
   "compatibility_flags": [
     "nodejs_compat"
   ],
-  "main": "worker.js",
+
+  // Cloudflare Workers Static Assets for serving HTML, CSS, JS, and media
   "assets": {
-    "directory": "./dist",
-    "binding": "ASSETS"
+    "directory": "./pr007-conversation-copilot/frontend",
+    "binding": "ASSETS",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "single-page-application"
   },
+
+  // Environment variables
   "vars": {
-    "APP_NAME": "Nimad — AI Conversation Copilot",
-    "APP_ENV": "production",
-    "BACKEND_URL": "https://simplified-confidential-whom-litigation.trycloudflare.com"
+    "ENVIRONMENT": "production",
+    // Live cloudflared tunnel URL (leave empty to use high-performance built-in Edge Engine):
+    "BACKEND_API_URL": ""
+  },
+
+  "observability": {
+    "enabled": true
   }
 }
