@@ -13,6 +13,6 @@
   "vars": {
     "APP_NAME": "Nimad — AI Conversation Copilot",
     "APP_ENV": "production",
-    "BACKEND_URL": "http://127.0.0.1:8000"
+    "BACKEND_URL": "https://simplified-confidential-whom-litigation.trycloudflare.com"
   }
 }
