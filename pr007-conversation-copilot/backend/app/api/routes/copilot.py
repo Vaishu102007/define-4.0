@@ -567,10 +567,14 @@ async def ingest_speaker_utterance(
     # Check for questions to surface instant Easy Answer
     easy_answer_data = None
     lower = payload.text.strip().lower()
+    tamil_q_markers = ["என்ன", "எப்படி", "எப்போது", "எங்கே", "ஏன்", "முடியுமா", "உள்ளதா", "எவ்வளவு", "யார்", "யாருக்கு", "எதற்கு", "தெரியுமா", "ஆகுமா", "வருமா", "இருக்கிறதா", "இருக்கா", "விலை", "கட்டணம்"]
+    malayalam_q_markers = ["എന്ത്", "എങ്ങനെ", "എപ്പോൾ", "എവിടെ", "എന്തുകൊണ്ട്", "കഴിയുമോ", "ഉണ്ടോ", "എത്ര", "ആര്", "എന്താണ്", "പറയാമോ", "സാധിക്കുമോ", "ആണോ", "ഉണ്ടാകുമോ", "വില"]
     is_question = (
         "?" in payload.text
         or any(lower.startswith(w) for w in ["what", "how", "why", "when", "where", "can we", "could we", "is there", "will", "do you", "does", "would"])
         or any(w in lower for w in ["pricing", "cost", "sla", "budget", "compliance", "timeline", "architecture", "security", "failover"])
+        or any(w in payload.text for w in tamil_q_markers)
+        or any(w in payload.text for w in malayalam_q_markers)
     )
 
     if is_question:

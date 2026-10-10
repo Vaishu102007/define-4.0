@@ -944,9 +944,18 @@ body {
   border-color: rgba(255,255,255,.3);
 }
 .stage-transcript-item.active-utterance {
-  border-color: #ffffff;
-  background: #1c1c22;
-  box-shadow: 0 0 12px rgba(255,255,255,.1);
+  border-color: #3b82f6;
+  background: #131522;
+  box-shadow: 0 0 14px rgba(59, 130, 246, 0.18);
+}
+.stage-transcript-item.interim-utterance {
+  border-left: 3px solid #3b82f6;
+  background: #121420;
+  animation: pulseGlow 1.5s infinite alternate;
+}
+@keyframes pulseGlow {
+  from { border-color: rgba(59, 130, 246, 0.4); }
+  to { border-color: rgba(59, 130, 246, 1); }
 }
 .stage-transcript-meta {
   display: flex;

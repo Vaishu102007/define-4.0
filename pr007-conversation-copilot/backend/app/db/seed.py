@@ -195,6 +195,39 @@ async def seed_demo_data_for_user(db: AsyncSession, user: User):
         created_at=three_days_later,
     )
     db.add(s4)
+    await db.flush()
+
+    t4_segments = [
+        TranscriptSegment(
+            session_id=s4.id,
+            speaker_label="Sarah Chen (VP Engineering)",
+            speaker_role="screen_attender",
+            audio_channel="screen_audio",
+            text="Welcome everyone. Our focus today is finalizing the APAC and North America enterprise rollout for the H2 AI Copilot.",
+            source_type="screen_attender",
+            confidence=0.98,
+        ),
+        TranscriptSegment(
+            session_id=s4.id,
+            speaker_label="David Miller (Procurement)",
+            speaker_role="screen_attender",
+            audio_channel="screen_audio",
+            text="From procurement, we want to ensure pricing tiers and security SLAs are locked down for the initial 250 enterprise seats.",
+            source_type="screen_attender",
+            confidence=0.96,
+        ),
+        TranscriptSegment(
+            session_id=s4.id,
+            speaker_label="You (Host)",
+            speaker_role="host",
+            audio_channel="user_mic",
+            text="Confirmed. Today we will review our high-availability deployment, multilingual speech engine, and enterprise integration guarantees.",
+            source_type="mic_user",
+            confidence=0.99,
+        ),
+    ]
+    for t in t4_segments:
+        db.add(t)
 
     await db.commit()
     logger.info("Successfully seeded demo meetings for %s into database.", user.email)
@@ -202,6 +235,7 @@ async def seed_demo_data_for_user(db: AsyncSession, user: User):
     try:
         await VectorDatabaseService.vectorize_entire_session(s1.id, user.id, db)
         await VectorDatabaseService.vectorize_entire_session(s2.id, user.id, db)
+        await VectorDatabaseService.vectorize_entire_session(s4.id, user.id, db)
     except Exception as e:
         logger.warning("Auto-vectorization on seed: %s", e)
 
