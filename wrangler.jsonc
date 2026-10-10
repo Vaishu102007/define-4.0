@@ -8,7 +8,6 @@
   "assets": {
     "directory": "./dist"
   },
-  "pages_build_output_dir": "./dist",
   "vars": {
     "APP_NAME": "Nimad — AI Conversation Copilot",
     "APP_ENV": "production",
