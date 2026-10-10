@@ -6,6 +6,7 @@
   <title>Nimad — AI Conversation Copilot | Live Meeting Intelligence</title>
   <meta name="description" content="Nimad is your real-time AI copilot for high-stakes meetings. Live transcription, smart suggestions, instant summaries, and decision ledgers." />
   <link rel="stylesheet" href="/static/base.css" />
+  <script src="/config.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -931,24 +932,109 @@
         <span>◆ AI-POWERED IN-APP &amp; EXTERNAL MEETING COPILOT</span>
       </h1>
 
-      <div style="display:flex;flex-direction:column;align-items:center;gap:16px;width:100%">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:18px;width:100%;max-width:920px">
         <div class="hero-cta-group" style="margin-bottom:0">
-          <a href="/login" class="btn-cta-primary">
-            <span class="neon-pad neon-pad-xs neon-pad-white"><svg viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg></span>
-            <span>Go to Login Page</span>
-            <span>→</span>
-          </a>
+          <button id="hero-btn-create" class="btn-cta-primary" onclick="toggleHeroMeeting('create')">
+            <span class="neon-pad neon-pad-xs neon-pad-white"><svg viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg></span>
+            <span>+ Create Room</span>
+          </button>
+          <button id="hero-btn-join" class="btn-cta-secondary" onclick="toggleHeroMeeting('join')">
+            <span class="neon-pad neon-pad-xs neon-pad-silver"><svg viewBox="0 0 24 24"><path d="M15 10l5-5m0 0l-5-5m5 5H9a6 6 0 00-6 6v3m6 5l-5 5m0 0l5 5m-5-5h11a6 6 0 006-6v-3"/></svg></span>
+            <span>🔗 Join Room</span>
+          </button>
           <button class="btn-cta-secondary" onclick="quickFillDemoAndLogin()">
             <span class="neon-pad neon-pad-xs neon-pad-cyan"><svg viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg></span>
             <span>Launch 1-Click Demo</span>
           </button>
-          <a href="#auth-section" class="btn-cta-secondary">
-            <span class="neon-pad neon-pad-xs neon-pad-silver"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span>
-            <span>Sign In Below</span>
-          </a>
         </div>
 
-        <a href="#preview" class="hero-scroll-prompt">
+        <!-- Live Meeting Portal Hub (Hidden by default; only shows requested box when clicked) -->
+        <div id="landing-meeting-portal" class="meeting-portal-hub-card" style="display:none;width:100%;max-width:640px;background:rgba(12,12,16,0.96);border:1px solid rgba(255,255,255,0.2);border-radius:18px;padding:22px 24px;box-shadow:0 24px 60px rgba(0,0,0,0.92);backdrop-filter:blur(24px);text-align:left;position:relative;z-index:4">
+          
+          <!-- Box 1: Join Room (Only Room ID Entering Box) -->
+          <div id="hero-join-box" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:10px">
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="font-size:1.25rem">🔗</span>
+                <div>
+                  <h3 style="font-size:1.1rem;font-weight:800;color:#ffffff;margin:0">Join Meeting Room</h3>
+                  <p style="font-size:0.78rem;color:#94a3b8;margin:2px 0 0">Enter the meeting link or room code to join the call</p>
+                </div>
+              </div>
+              <button type="button" onclick="closeHeroMeeting()" style="background:none;border:none;color:#94a3b8;font-size:1.25rem;cursor:pointer;padding:4px 8px;line-height:1" title="Close and show buttons only">✕</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div>
+                <label style="display:block;font-size:0.76rem;font-weight:600;color:#cbd5e1;margin-bottom:5px">
+                  Meeting Link or Room Code <span style="color:#ef4444">*</span>
+                </label>
+                <input type="text" id="landing-join-link-input" class="form-input" placeholder="e.g. http://localhost:8000/session/... or 8-char code" style="font-size:0.86rem;padding:10px 14px;background:#090a0d;border:1px solid rgba(255,255,255,0.22);color:#ffffff;width:100%;border-radius:8px" autofocus />
+              </div>
+              <div>
+                <label style="display:block;font-size:0.76rem;font-weight:600;color:#cbd5e1;margin-bottom:5px">
+                  Your Display Name
+                </label>
+                <input type="text" id="landing-join-name-input" class="form-input" placeholder="e.g. Elena Rostova / Guest Participant" style="font-size:0.86rem;padding:10px 14px;background:#090a0d;border:1px solid rgba(255,255,255,0.22);color:#ffffff;width:100%;border-radius:8px" />
+              </div>
+              <div style="display:flex;gap:10px;margin-top:4px">
+                <button class="btn-submit-auth" onclick="landingJoinMeeting(this)" style="flex:1;background:#ffffff;color:#000000;font-weight:800;font-size:0.9rem;padding:11px 16px;border-radius:8px;border:none;cursor:pointer">
+                  Enter Meeting Room →
+                </button>
+                <button type="button" onclick="closeHeroMeeting()" style="background:rgba(255,255,255,0.08);color:#cbd5e1;font-weight:600;font-size:0.85rem;padding:11px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);cursor:pointer">
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Box 2: Create Room (Only Room Creating Box) -->
+          <div id="hero-create-box" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:10px">
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="font-size:1.25rem">✨</span>
+                <div>
+                  <h3 style="font-size:1.1rem;font-weight:800;color:#ffffff;margin:0">Create Live Meeting Room</h3>
+                  <p style="font-size:0.78rem;color:#94a3b8;margin:2px 0 0">Generate a shareable meeting link and invite participants</p>
+                </div>
+              </div>
+              <button type="button" onclick="closeHeroMeeting()" style="background:none;border:none;color:#94a3b8;font-size:1.25rem;cursor:pointer;padding:4px 8px;line-height:1" title="Close and show buttons only">✕</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div>
+                <label style="display:block;font-size:0.76rem;font-weight:600;color:#cbd5e1;margin-bottom:5px">
+                  Meeting Title <span style="color:#ef4444">*</span>
+                </label>
+                <input type="text" id="landing-create-title-input" class="form-input" placeholder="e.g. Architecture Review &amp; Strategic Alignment" value="Live Video Sync &amp; Discussion" oninput="updateLandingMeetingScore()" style="font-size:0.86rem;padding:10px 14px;background:#090a0d;border:1px solid rgba(255,255,255,0.22);color:#ffffff;width:100%;border-radius:8px" autofocus />
+                
+                <!-- Real-time Monthly Completed Meetings Score -->
+                <div id="landing-title-score-panel" style="margin-top:8px;padding:8px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.18);border-radius:8px;display:flex;align-items:center;justify-content:space-between">
+                  <div>
+                    <div style="font-size:0.68rem;font-weight:800;letter-spacing:0.04em;color:#cbd5e1">MONTHLY COMPLETED MEETINGS SCORE</div>
+                    <div id="landing-title-score-desc" style="font-size:0.72rem;color:#94a3b8;margin-top:2px">0 done this month with matching name &amp; motive</div>
+                  </div>
+                  <div id="landing-title-score-num" style="font-family:var(--font-mono);font-size:1.15rem;font-weight:900;color:#ffffff;background:#090a0d;border:1px solid rgba(255,255,255,0.35);padding:3px 10px;border-radius:6px">0</div>
+                </div>
+              </div>
+              <div>
+                <label style="display:block;font-size:0.76rem;font-weight:600;color:#cbd5e1;margin-bottom:5px">
+                  Primary Goal / Objective (Optional)
+                </label>
+                <input type="text" id="landing-create-obj-input" class="form-input" placeholder="e.g. Review deliverables, SLA terms, and key action items" oninput="updateLandingMeetingScore()" style="font-size:0.86rem;padding:10px 14px;background:#090a0d;border:1px solid rgba(255,255,255,0.22);color:#ffffff;width:100%;border-radius:8px" />
+              </div>
+              <div style="display:flex;gap:10px;margin-top:4px">
+                <button class="btn-submit-auth" onclick="landingCreateMeeting(this)" style="flex:1;background:#ffffff;color:#000000;font-weight:800;font-size:0.9rem;padding:11px 16px;border-radius:8px;border:none;cursor:pointer">
+                  + Generate Link &amp; Start Meeting →
+                </button>
+                <button type="button" onclick="closeHeroMeeting()" style="background:rgba(255,255,255,0.08);color:#cbd5e1;font-weight:600;font-size:0.85rem;padding:11px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);cursor:pointer">
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <a href="#preview" class="hero-scroll-prompt" style="margin-top:10px">
           <span>Explore Live Copilot</span>
           <span style="font-size:1.1rem;animation:float 2s ease-in-out infinite">↓</span>
         </a>
@@ -1077,13 +1163,108 @@
       <div class="auth-card-title">Sign In to Nimad</div>
       <p class="auth-card-desc">Access your meeting workspace, transcripts, and insights</p>
 
-      <div class="auth-tab-bar">
-        <button id="tab-login" class="auth-tab-btn active" onclick="switchAuthTab('login')">Sign In</button>
-        <button id="tab-register" class="auth-tab-btn" onclick="switchAuthTab('register')">Create Account</button>
+      <!-- Action Tabs Bar (Buttons Only by default) -->
+      <div class="auth-tab-bar" style="margin-bottom:20px">
+        <button id="tab-join" class="auth-tab-btn" onclick="toggleAuthTab('join')">Join Meeting</button>
+        <button id="tab-create" class="auth-tab-btn" onclick="toggleAuthTab('create')">Create Room</button>
+        <button id="tab-login" class="auth-tab-btn" onclick="toggleAuthTab('login')">Sign In</button>
+        <button id="tab-register" class="auth-tab-btn" onclick="toggleAuthTab('register')">Create Account</button>
       </div>
 
-      <!-- Login Form -->
-      <form id="login-form" onsubmit="handleAuthLogin(event)">
+      <!-- Default "Buttons Only" State (Shown when no tab is opened) -->
+      <div id="auth-buttons-only-state" style="display:flex;flex-direction:column;gap:12px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <button class="btn-cta-secondary" onclick="toggleAuthTab('join')" style="justify-content:center;padding:14px;border-radius:10px;font-size:0.92rem;font-weight:700">
+            <span class="neon-pad neon-pad-xs neon-pad-silver"><svg viewBox="0 0 24 24"><path d="M15 10l5-5m0 0l-5-5m5 5H9a6 6 0 00-6 6v3m6 5l-5 5m0 0l5 5m-5-5h11a6 6 0 006-6v-3"/></svg></span>
+            <span>Join Room</span>
+          </button>
+          <button class="btn-cta-primary" onclick="toggleAuthTab('create')" style="justify-content:center;padding:14px;border-radius:10px;font-size:0.92rem;font-weight:800">
+            <span class="neon-pad neon-pad-xs neon-pad-white"><svg viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg></span>
+            <span>Create Room</span>
+          </button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <button class="btn-cta-secondary" onclick="toggleAuthTab('login')" style="justify-content:center;padding:12px;border-radius:10px;font-size:0.86rem">
+            <span>Sign In</span>
+          </button>
+          <button class="btn-cta-secondary" onclick="toggleAuthTab('register')" style="justify-content:center;padding:12px;border-radius:10px;font-size:0.86rem">
+            <span>Create Account</span>
+          </button>
+        </div>
+        <button type="button" class="btn-demo-fast" onclick="quickFillDemoAndLogin()" style="display:inline-flex;align-items:center;justify-content:center;gap:8px;margin-top:4px">
+          <span class="neon-pad neon-pad-xs neon-pad-amber"><svg viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg></span>
+          <span>1-Click Instant Demo Login</span>
+        </button>
+      </div>
+
+      <!-- 1. Join Room Form (Only Room ID Entering Box - Hidden by default) -->
+      <form id="join-meeting-form" style="display:none" onsubmit="handleAuthJoinMeeting(event)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:10px">
+          <div style="font-size:0.9rem;font-weight:700;color:#ffffff;display:flex;align-items:center;gap:8px">
+            <span>🔗</span> Enter Meeting Link or Room Code
+          </div>
+          <button type="button" onclick="closeAuthTabs()" style="background:none;border:none;color:#94a3b8;font-size:1.15rem;cursor:pointer;padding:2px 6px" title="Back to buttons only">✕ Close</button>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="join-meeting-input">Meeting Link or Room Code <span style="color:#ef4444">*</span></label>
+          <input id="join-meeting-input" class="form-input" type="text" placeholder="e.g. http://localhost:8000/session/... or 8-char code" required autofocus />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="join-name-input">Your Display Name</label>
+          <input id="join-name-input" class="form-input" type="text" placeholder="e.g. Elena Rostova / Guest Participant" />
+        </div>
+        <div style="display:flex;gap:10px">
+          <button id="btn-submit-join" class="btn-submit-auth" type="submit" style="flex:1;background:#ffffff;color:#000000;font-weight:800">
+            Enter Meeting Room →
+          </button>
+          <button type="button" onclick="closeAuthTabs()" style="background:rgba(255,255,255,0.08);color:#cbd5e1;font-weight:600;font-size:0.85rem;padding:11px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);cursor:pointer">
+            Cancel
+          </button>
+        </div>
+        <p id="join-error-msg" class="auth-error"></p>
+      </form>
+
+      <!-- 2. Create Room Form (Only Room Creating Box - Hidden by default) -->
+      <form id="create-meeting-form" style="display:none" onsubmit="handleAuthCreateMeeting(event)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:10px">
+          <div style="font-size:0.9rem;font-weight:700;color:#ffffff;display:flex;align-items:center;gap:8px">
+            <span>✨</span> Create Live Meeting Room
+          </div>
+          <button type="button" onclick="closeAuthTabs()" style="background:none;border:none;color:#94a3b8;font-size:1.15rem;cursor:pointer;padding:2px 6px" title="Back to buttons only">✕ Close</button>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="card-create-title-input">Meeting Title <span style="color:#ef4444">*</span></label>
+          <input id="card-create-title-input" class="form-input" type="text" placeholder="e.g. Architecture Review &amp; Strategic Alignment" value="Live Video Sync &amp; Discussion" oninput="updateCardMeetingScore()" required autofocus />
+          <!-- Real-time Monthly Completed Meetings Score -->
+          <div id="card-title-score-panel" style="margin-top:8px;padding:8px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.18);border-radius:8px;display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <div style="font-size:0.68rem;font-weight:800;letter-spacing:0.04em;color:#cbd5e1">MONTHLY COMPLETED MEETINGS SCORE</div>
+              <div id="card-title-score-desc" style="font-size:0.72rem;color:#94a3b8;margin-top:2px">0 done this month with matching name &amp; motive</div>
+            </div>
+            <div id="card-title-score-num" style="font-family:var(--font-mono);font-size:1.15rem;font-weight:900;color:#ffffff;background:#090a0d;border:1px solid rgba(255,255,255,0.35);padding:3px 10px;border-radius:6px">0</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="card-create-obj-input">Primary Goal / Objective (Optional)</label>
+          <input id="card-create-obj-input" class="form-input" type="text" placeholder="e.g. Review deliverables, SLA terms, and key action items" oninput="updateCardMeetingScore()" />
+        </div>
+        <div style="display:flex;gap:10px">
+          <button id="btn-submit-card-create" class="btn-submit-auth" type="submit" style="flex:1;background:#ffffff;color:#000000;font-weight:800">
+            + Generate Link &amp; Start Meeting →
+          </button>
+          <button type="button" onclick="closeAuthTabs()" style="background:rgba(255,255,255,0.08);color:#cbd5e1;font-weight:600;font-size:0.85rem;padding:11px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);cursor:pointer">
+            Cancel
+          </button>
+        </div>
+        <p id="card-create-error-msg" class="auth-error"></p>
+      </form>
+
+      <!-- 3. Login Form (Hidden by default) -->
+      <form id="login-form" style="display:none" onsubmit="handleAuthLogin(event)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:10px">
+          <div style="font-size:0.9rem;font-weight:700;color:#ffffff">Sign In to Workspace</div>
+          <button type="button" onclick="closeAuthTabs()" style="background:none;border:none;color:#94a3b8;font-size:1.15rem;cursor:pointer;padding:2px 6px" title="Back to buttons only">✕ Close</button>
+        </div>
         <div class="form-group">
           <label class="form-label" for="login-email">Email Address</label>
           <input id="login-email" class="form-input" type="email" placeholder="demo@copilot.ai" required autocomplete="email" />
@@ -1092,16 +1273,25 @@
           <label class="form-label" for="login-password">Password</label>
           <input id="login-password" class="form-input" type="password" placeholder="••••••••" required autocomplete="current-password" />
         </div>
-        <button id="btn-submit-login" class="btn-submit-auth" type="submit">Sign In to Workspace →</button>
-        <button type="button" class="btn-demo-fast" onclick="quickFillDemoAndLogin()" style="display:inline-flex;align-items:center;justify-content:center;gap:8px">
+        <div style="display:flex;gap:10px">
+          <button id="btn-submit-login" class="btn-submit-auth" type="submit" style="flex:1">Sign In to Workspace →</button>
+          <button type="button" onclick="closeAuthTabs()" style="background:rgba(255,255,255,0.08);color:#cbd5e1;font-weight:600;font-size:0.85rem;padding:11px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);cursor:pointer">
+            Cancel
+          </button>
+        </div>
+        <button type="button" class="btn-demo-fast" onclick="quickFillDemoAndLogin()" style="display:inline-flex;align-items:center;justify-content:center;gap:8px;margin-top:12px">
           <span class="neon-pad neon-pad-xs neon-pad-amber"><svg viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg></span>
           <span>1-Click Instant Demo Login</span>
         </button>
         <p id="login-error-msg" class="auth-error"></p>
       </form>
 
-      <!-- Register Form -->
+      <!-- 4. Register Form (Hidden by default) -->
       <form id="register-form" style="display:none" onsubmit="handleAuthRegister(event)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:10px">
+          <div style="font-size:0.9rem;font-weight:700;color:#ffffff">Create Account</div>
+          <button type="button" onclick="closeAuthTabs()" style="background:none;border:none;color:#94a3b8;font-size:1.15rem;cursor:pointer;padding:2px 6px" title="Back to buttons only">✕ Close</button>
+        </div>
         <div class="form-group">
           <label class="form-label" for="reg-name">Display Name</label>
           <input id="reg-name" class="form-input" type="text" placeholder="Sarah Chen" required autocomplete="name" />
@@ -1114,7 +1304,12 @@
           <label class="form-label" for="reg-password">Password (min 8 chars)</label>
           <input id="reg-password" class="form-input" type="password" placeholder="••••••••" required minlength="8" autocomplete="new-password" />
         </div>
-        <button id="btn-submit-reg" class="btn-submit-auth" type="submit">Create Free Account →</button>
+        <div style="display:flex;gap:10px">
+          <button id="btn-submit-reg" class="btn-submit-auth" type="submit" style="flex:1">Create Free Account →</button>
+          <button type="button" onclick="closeAuthTabs()" style="background:rgba(255,255,255,0.08);color:#cbd5e1;font-weight:600;font-size:0.85rem;padding:11px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);cursor:pointer">
+            Cancel
+          </button>
+        </div>
         <p id="reg-error-msg" class="auth-error"></p>
       </form>
     </div>
@@ -1138,19 +1333,152 @@
       // Optional check or quick link
     }
 
+    // Track current open tab in Auth section (null = only buttons displayed)
+    let currentAuthTab = null;
+
+    window.closeAuthTabs = () => {
+      currentAuthTab = null;
+      ['join-meeting-form', 'create-meeting-form', 'login-form', 'register-form'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+      });
+      const buttonsState = document.getElementById('auth-buttons-only-state');
+      if (buttonsState) buttonsState.style.display = 'flex';
+
+      ['tab-join', 'tab-create', 'tab-login', 'tab-register'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('active');
+      });
+    };
+
+    window.toggleAuthTab = (mode) => {
+      if (currentAuthTab === mode) {
+        window.closeAuthTabs();
+        return;
+      }
+
+      currentAuthTab = mode;
+      const buttonsState = document.getElementById('auth-buttons-only-state');
+      if (buttonsState) buttonsState.style.display = 'none';
+
+      const forms = {
+        join: 'join-meeting-form',
+        create: 'create-meeting-form',
+        login: 'login-form',
+        register: 'register-form'
+      };
+
+      Object.entries(forms).forEach(([key, formId]) => {
+        const el = document.getElementById(formId);
+        if (el) el.style.display = (key === mode) ? 'block' : 'none';
+      });
+
+      const tabs = {
+        join: 'tab-join',
+        create: 'tab-create',
+        login: 'tab-login',
+        register: 'tab-register'
+      };
+
+      Object.entries(tabs).forEach(([key, tabId]) => {
+        const el = document.getElementById(tabId);
+        if (el) el.classList.toggle('active', key === mode);
+      });
+
+      if (mode === 'join') {
+        document.getElementById('join-meeting-input')?.focus();
+      } else if (mode === 'create') {
+        document.getElementById('card-create-title-input')?.focus();
+      } else if (mode === 'login') {
+        document.getElementById('login-email')?.focus();
+      } else if (mode === 'register') {
+        document.getElementById('reg-name')?.focus();
+      }
+    };
+
     window.switchAuthTab = (mode) => {
-      document.getElementById('login-form').style.display = mode === 'login' ? 'block' : 'none';
-      document.getElementById('register-form').style.display = mode === 'register' ? 'block' : 'none';
-      document.getElementById('tab-login').classList.toggle('active', mode === 'login');
-      document.getElementById('tab-register').classList.toggle('active', mode === 'register');
+      window.toggleAuthTab(mode);
+    };
+
+    window.handleAuthCreateMeeting = async (e) => {
+      e.preventDefault();
+      const titleInput = document.getElementById('card-create-title-input');
+      const objInput = document.getElementById('card-create-obj-input');
+      const title = (titleInput?.value || '').trim() || 'Live Meeting Room';
+      const objective = (objInput?.value || '').trim();
+      const errEl = document.getElementById('card-create-error-msg');
+      const btn = document.getElementById('btn-submit-card-create');
+
+      if (errEl) errEl.style.display = 'none';
+      const origText = btn.textContent;
+      btn.textContent = 'Generating meeting link…';
+      btn.disabled = true;
+
+      try {
+        const res = await api.meetings.create(title, objective, 'Host');
+        if (res && res.access_token) {
+          localStorage.setItem('copilot_token', res.access_token);
+          localStorage.setItem('copilot_user', JSON.stringify({
+            displayName: res.display_name,
+            role: res.role,
+            sessionId: res.session_id
+          }));
+        }
+        const fullUrl = window.location.origin + (res.meeting_url || `/session/${res.session_id}`);
+        showMeetingCreatedModal(res.session_id, fullUrl, res.meeting_code);
+      } catch (err) {
+        if (errEl) {
+          errEl.textContent = 'Could not create meeting: ' + err.message;
+          errEl.style.display = 'block';
+        } else {
+          alert('Could not create meeting: ' + err.message);
+        }
+      } finally {
+        btn.textContent = origText;
+        btn.disabled = false;
+      }
+    };
+
+    window.handleAuthJoinMeeting = async (e) => {
+      e.preventDefault();
+      const link = (document.getElementById('join-meeting-input')?.value || '').trim();
+      const name = (document.getElementById('join-name-input')?.value || '').trim() || 'Attendee';
+      const errEl = document.getElementById('join-error-msg');
+      const btn = document.getElementById('btn-submit-join');
+
+      if (!link) {
+        errEl.textContent = 'Please enter or paste a meeting link or room code';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      errEl.style.display = 'none';
+      btn.textContent = 'Connecting to Meeting Room…';
+      try {
+        const res = await api.meetings.join(link, name);
+        if (res && res.access_token) {
+          localStorage.setItem('copilot_token', res.access_token);
+          localStorage.setItem('copilot_user', JSON.stringify({
+            displayName: res.display_name,
+            role: res.role,
+            sessionId: res.session_id
+          }));
+        }
+        btn.textContent = 'Entering Room…';
+        window.location.href = res.meeting_url || `/session/${res.session_id}`;
+      } catch (err) {
+        errEl.textContent = 'Could not join meeting: ' + err.message;
+        errEl.style.display = 'block';
+        btn.textContent = 'Enter Meeting Room →';
+      }
     };
 
     window.quickFillDemoAndLogin = async () => {
       document.getElementById('login-email').value = 'demo@copilot.ai';
       document.getElementById('login-password').value = 'demopassword123';
-      switchAuthTab('login');
+      window.toggleAuthTab('login');
       const errEl = document.getElementById('login-error-msg');
-      errEl.style.display = 'none';
+      if (errEl) errEl.style.display = 'none';
 
       const btn = document.getElementById('btn-submit-login');
       btn.textContent = 'Signing in as Demo User…';
@@ -1169,8 +1497,10 @@
           window.location.href = '/dashboard';
         }
       } catch (err) {
-        errEl.textContent = 'Login: ' + err.message;
-        errEl.style.display = 'block';
+        if (errEl) {
+          errEl.textContent = 'Login: ' + err.message;
+          errEl.style.display = 'block';
+        }
         btn.textContent = 'Sign In to Workspace →';
       }
     };
@@ -1216,6 +1546,280 @@
         errEl.style.display = 'block';
         btn.textContent = 'Create Free Account →';
       }
+    };
+
+    // ── Live Meeting Portal Actions (Hero Section) ──────────────────────
+    let currentHeroMode = null;
+
+    window.closeHeroMeeting = () => {
+      currentHeroMode = null;
+      const portal = document.getElementById('landing-meeting-portal');
+      if (portal) portal.style.display = 'none';
+      const joinBox = document.getElementById('hero-join-box');
+      if (joinBox) joinBox.style.display = 'none';
+      const createBox = document.getElementById('hero-create-box');
+      if (createBox) createBox.style.display = 'none';
+    };
+
+    window.toggleHeroMeeting = (mode) => {
+      const portal = document.getElementById('landing-meeting-portal');
+      const joinBox = document.getElementById('hero-join-box');
+      const createBox = document.getElementById('hero-create-box');
+
+      if (currentHeroMode === mode && portal && portal.style.display !== 'none') {
+        window.closeHeroMeeting();
+        return;
+      }
+
+      currentHeroMode = mode;
+      if (portal) portal.style.display = 'block';
+
+      if (mode === 'join') {
+        if (joinBox) joinBox.style.display = 'block';
+        if (createBox) createBox.style.display = 'none';
+        portal?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        setTimeout(() => document.getElementById('landing-join-link-input')?.focus(), 100);
+      } else if (mode === 'create') {
+        if (createBox) createBox.style.display = 'block';
+        if (joinBox) joinBox.style.display = 'none';
+        portal?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        setTimeout(() => document.getElementById('landing-create-title-input')?.focus(), 100);
+      }
+    };
+
+    let cachedCompletedSessions = null;
+    async function fetchCompletedSessions() {
+      if (cachedCompletedSessions) return cachedCompletedSessions;
+      try {
+        const list = await api.sessions.list();
+        if (Array.isArray(list)) {
+          cachedCompletedSessions = list;
+          return list;
+        }
+      } catch (_) {}
+      return [];
+    }
+
+    window.updateLandingMeetingScore = async () => {
+      const title = (document.getElementById('landing-create-title-input')?.value || '').trim().toLowerCase();
+      const motive = (document.getElementById('landing-create-obj-input')?.value || '').trim().toLowerCase();
+      const scoreNum = document.getElementById('landing-title-score-num');
+      const scoreDesc = document.getElementById('landing-title-score-desc');
+      if (!scoreNum || !scoreDesc) return;
+
+      const now = new Date();
+      const curYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      const monthLabel = `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
+
+      if (!title) {
+        scoreNum.textContent = '0';
+        scoreDesc.textContent = `Type a meeting title to compute completed sessions in ${monthLabel}.`;
+        return;
+      }
+
+      const list = await fetchCompletedSessions();
+      const doneStatuses = new Set(['attended', 'ended', 'completed', 'done']);
+      const matches = (list || []).filter(s => {
+        const st = (s.status || '').toLowerCase();
+        if (!doneStatuses.has(st)) return false;
+        const sDate = (s.created_at || '').substring(0, 7);
+        if (sDate && sDate !== curYearMonth) return false;
+        const sTitle = (s.title || '').trim().toLowerCase();
+        const titleMatch = (sTitle === title) || (title.length >= 4 && sTitle.includes(title)) || (sTitle.length >= 4 && title.includes(sTitle));
+        if (!titleMatch) return false;
+        if (motive) {
+          const sObj = (s.objective || s.desired_outcome || '').trim().toLowerCase();
+          if (!sObj) return false;
+          const objMatch = (sObj === motive) || (motive.length >= 4 && sObj.includes(motive)) || (sObj.length >= 4 && motive.includes(sObj));
+          if (!objMatch) return false;
+        }
+        return true;
+      });
+
+      const count = matches.length;
+      scoreNum.textContent = String(count);
+      if (motive) {
+        scoreDesc.innerHTML = `<strong style="color:#ffffff">${count} completed</strong> in ${monthLabel} with matching title and motive.`;
+      } else {
+        scoreDesc.innerHTML = `<strong style="color:#ffffff">${count} completed</strong> in ${monthLabel} with this title. Enter motive to verify.`;
+      }
+    };
+
+    window.updateCardMeetingScore = async () => {
+      const title = (document.getElementById('card-create-title-input')?.value || '').trim().toLowerCase();
+      const motive = (document.getElementById('card-create-obj-input')?.value || '').trim().toLowerCase();
+      const scoreNum = document.getElementById('card-title-score-num');
+      const scoreDesc = document.getElementById('card-title-score-desc');
+      if (!scoreNum || !scoreDesc) return;
+
+      const now = new Date();
+      const curYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      const monthLabel = `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
+
+      if (!title) {
+        scoreNum.textContent = '0';
+        scoreDesc.textContent = `Type a meeting title to compute completed sessions in ${monthLabel}.`;
+        return;
+      }
+
+      const list = await fetchCompletedSessions();
+      const doneStatuses = new Set(['attended', 'ended', 'completed', 'done']);
+      const matches = (list || []).filter(s => {
+        const st = (s.status || '').toLowerCase();
+        if (!doneStatuses.has(st)) return false;
+        const sDate = (s.created_at || '').substring(0, 7);
+        if (sDate && sDate !== curYearMonth) return false;
+        const sTitle = (s.title || '').trim().toLowerCase();
+        const titleMatch = (sTitle === title) || (title.length >= 4 && sTitle.includes(title)) || (sTitle.length >= 4 && title.includes(sTitle));
+        if (!titleMatch) return false;
+        if (motive) {
+          const sObj = (s.objective || s.desired_outcome || '').trim().toLowerCase();
+          if (!sObj) return false;
+          const objMatch = (sObj === motive) || (motive.length >= 4 && sObj.includes(motive)) || (sObj.length >= 4 && motive.includes(sObj));
+          if (!objMatch) return false;
+        }
+        return true;
+      });
+
+      const count = matches.length;
+      scoreNum.textContent = String(count);
+      if (motive) {
+        scoreDesc.innerHTML = `<strong style="color:#ffffff">${count} completed</strong> in ${monthLabel} with matching title and motive.`;
+      } else {
+        scoreDesc.innerHTML = `<strong style="color:#ffffff">${count} completed</strong> in ${monthLabel} with this title. Enter motive to verify.`;
+      }
+    };
+
+    window.focusLandingCreate = () => {
+      window.toggleHeroMeeting('create');
+      setTimeout(() => window.updateLandingMeetingScore(), 50);
+    };
+
+    window.focusLandingJoin = () => {
+      window.toggleHeroMeeting('join');
+    };
+
+    window.landingJoinMeeting = async (btn) => {
+      const linkInput = document.getElementById('landing-join-link-input');
+      const nameInput = document.getElementById('landing-join-name-input');
+      const rawCode = (linkInput?.value || '').trim();
+      const displayName = (nameInput?.value || '').trim() || 'Attendee';
+
+      if (!rawCode) {
+        alert('Please enter or paste a meeting link or room code');
+        linkInput?.focus();
+        return;
+      }
+
+      const origText = btn.textContent;
+      btn.textContent = 'Connecting to room…';
+      btn.disabled = true;
+      try {
+        const res = await api.meetings.join(rawCode, displayName);
+        if (res && res.access_token) {
+          localStorage.setItem('copilot_token', res.access_token);
+          localStorage.setItem('copilot_user', JSON.stringify({
+            displayName: res.display_name,
+            role: res.role,
+            sessionId: res.session_id
+          }));
+        }
+        btn.textContent = 'Entering Meeting…';
+        window.location.href = res.meeting_url || `/session/${res.session_id}`;
+      } catch (err) {
+        alert('Could not join meeting: ' + err.message);
+        btn.textContent = origText;
+        btn.disabled = false;
+      }
+    };
+
+    window.landingCreateMeeting = async (btn) => {
+      const titleInput = document.getElementById('landing-create-title-input');
+      const objInput = document.getElementById('landing-create-obj-input');
+      const title = (titleInput?.value || '').trim() || 'Live Meeting Room';
+      const objective = (objInput?.value || '').trim();
+
+      const origText = btn.textContent;
+      btn.textContent = 'Generating meeting link…';
+      btn.disabled = true;
+      try {
+        const res = await api.meetings.create(title, objective, 'Host');
+        if (res && res.access_token) {
+          localStorage.setItem('copilot_token', res.access_token);
+          localStorage.setItem('copilot_user', JSON.stringify({
+            displayName: res.display_name,
+            role: res.role,
+            sessionId: res.session_id
+          }));
+        }
+        const fullUrl = window.location.origin + (res.meeting_url || `/session/${res.session_id}`);
+        showMeetingCreatedModal(res.session_id, fullUrl, res.meeting_code);
+      } catch (err) {
+        alert('Could not create meeting: ' + err.message);
+      } finally {
+        btn.textContent = origText;
+        btn.disabled = false;
+      }
+    };
+
+    function showMeetingCreatedModal(sessionId, fullUrl, roomCode) {
+      // Remove any existing overlay
+      document.querySelector('.created-modal-overlay')?.remove();
+
+      const overlay = document.createElement('div');
+      overlay.className = 'created-modal-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(16px);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;';
+
+      overlay.innerHTML = `
+        <div style="background:#0e0f14;border:1px solid rgba(255,255,255,0.2);border-radius:18px;max-width:540px;width:100%;padding:28px;box-shadow:0 24px 60px rgba(0,0,0,0.95);position:relative">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <h3 style="font-size:1.35rem;font-weight:800;color:#ffffff;margin:0">🎉 Meeting Link Created!</h3>
+            <button onclick="this.closest('.created-modal-overlay').remove()" style="background:none;border:none;color:#94a3b8;font-size:1.3rem;cursor:pointer">✕</button>
+          </div>
+          <p style="font-size:0.88rem;color:#cbd5e1;line-height:1.5;margin-bottom:18px">
+            Your live meeting room is live. Copy and send this invite link to the other participant to join your call:
+          </p>
+
+          <div style="background:#16171f;padding:14px;border:1px solid rgba(255,255,255,0.14);border-radius:10px;margin-bottom:14px">
+            <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;margin-bottom:6px">SHAREABLE MEETING LINK</div>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="landing-modal-link-input" readonly value="${fullUrl}" style="font-size:0.85rem;padding:9px 12px;background:#090a0d;border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:#ffffff;flex:1" />
+              <button id="landing-copy-link-btn" onclick="copyCreatedLink('${fullUrl}', this)" style="background:#ffffff;color:#000000;font-weight:800;padding:8px 16px;border-radius:6px;border:none;cursor:pointer;white-space:nowrap">
+                Copy Link
+              </button>
+            </div>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#16171f;border-radius:8px;border:1px solid rgba(255,255,255,0.1);margin-bottom:20px">
+            <span style="font-size:0.82rem;color:#94a3b8">ROOM CODE:</span>
+            <strong style="font-family:var(--font-mono);font-size:1.1rem;color:#ffffff;letter-spacing:0.08em">${roomCode}</strong>
+          </div>
+
+          <div style="display:flex;gap:10px">
+            <button onclick="window.location.href='/session/${sessionId}'" style="flex:1;background:#ffffff;color:#000000;font-weight:800;font-size:0.95rem;padding:12px;border-radius:10px;border:none;cursor:pointer;box-shadow:0 0 20px rgba(255,255,255,0.2)">
+              Enter Meeting Room Now →
+            </button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(overlay);
+    }
+
+    window.copyCreatedLink = (url, btn) => {
+      navigator.clipboard.writeText(url).then(() => {
+        const orig = btn.textContent;
+        btn.textContent = '✓ Copied!';
+        btn.style.background = '#10b981';
+        btn.style.color = '#ffffff';
+        setTimeout(() => {
+          btn.textContent = orig;
+          btn.style.background = '#ffffff';
+          btn.style.color = '#000000';
+        }, 2500);
+      });
     };
   </script>
 </body>

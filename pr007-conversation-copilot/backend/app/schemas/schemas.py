@@ -183,6 +183,7 @@ class SummaryOut(BaseModel):
     executive_summary: Optional[str] = None
     key_decisions: Optional[list] = None
     key_points: Optional[list] = None
+    important_points: Optional[list] = None
     unresolved_questions: Optional[list] = None
     pending_questions: Optional[list] = None
     follow_up_draft: Optional[str] = None
@@ -194,6 +195,9 @@ class SummaryOut(BaseModel):
 
 class SummaryUpdate(BaseModel):
     summary_text: Optional[str] = None
+    executive_summary: Optional[str] = None
+    key_points: Optional[list] = None
+    important_points: Optional[list] = None
     key_decisions: Optional[list] = None
     unresolved_questions: Optional[list] = None
     follow_up_draft: Optional[str] = None
@@ -386,5 +390,52 @@ class MultiSpeakerUtteranceSubmit(BaseModel):
     timestamp_end: Optional[float] = None
     confidence: Optional[float] = 0.95
     source_type: Optional[str] = "screen_attender"
+
+
+# ──────────────────────────── Meeting Portal & Real-Time ────────────────────────────
+
+class MeetingCreateRequest(BaseModel):
+    title: Optional[str] = "Live Meeting Room"
+    objective: Optional[str] = None
+    host_name: Optional[str] = "Host"
+    mode: Optional[str] = "group"
+
+
+class MeetingJoinRequest(BaseModel):
+    meeting_id_or_url: str
+    display_name: Optional[str] = "Participant"
+
+
+class MeetingJoinResponse(BaseModel):
+    session_id: str
+    title: str
+    objective: Optional[str] = None
+    mode: str = "one_to_one"
+    display_name: str
+    role: str
+    access_token: str
+    meeting_url: str
+    meeting_code: str
+
+
+class MeetingPublicInfo(BaseModel):
+    id: str
+    title: str
+    objective: Optional[str] = None
+    status: str
+    owner_name: Optional[str] = "Host"
+    created_at: datetime
+
+
+class MeetingParticipantOut(BaseModel):
+    id: str
+    session_id: str
+    user_id: str
+    display_name: str
+    role: str
+    joined_at: datetime
+
+    model_config = {"from_attributes": True}
+
 
 

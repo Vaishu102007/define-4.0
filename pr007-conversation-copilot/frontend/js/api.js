@@ -3,7 +3,9 @@
  * Reads the JWT from localStorage and injects Authorization header.
  */
 
-const BASE = window.location.origin;
+const BASE = (typeof window !== 'undefined' && window.__COPILOT_API_BASE__)
+  ? window.__COPILOT_API_BASE__
+  : window.location.origin;
 
 function getToken() {
   return localStorage.getItem('copilot_token');
@@ -268,6 +270,9 @@ export const api = {
         } catch (_) {}
         throw new Error(msg);
       }
+      return await resp.blob();
+    },
+  },
 
   // ── Vector Database & Semantic Memory ──────────────────────────────
   vector: {
@@ -295,6 +300,32 @@ export const api = {
       apiFetch(`/api/v1/sessions/${sessionId}/speaker-utterance`, {
         method: 'POST',
         body: JSON.stringify(payload),
+      }),
+  },
+
+  // ── Meetings & Real-Time Portal ──────────────────────────────────────
+  meetings: {
+    create: (title = 'Live Meeting Room', objective = null, hostName = 'Host', mode = 'group') =>
+      apiFetch('/api/v1/meetings/create', {
+        method: 'POST',
+        body: JSON.stringify({ title, objective, host_name: hostName, mode }),
+      }),
+
+    join: (meetingIdOrUrl, displayName = 'Participant') =>
+      apiFetch('/api/v1/meetings/join', {
+        method: 'POST',
+        body: JSON.stringify({ meeting_id_or_url: meetingIdOrUrl, display_name: displayName }),
+      }),
+
+    getPublicInfo: (sessionId) =>
+      apiFetch(`/api/v1/meetings/${sessionId}/public-info`),
+
+    getParticipants: (sessionId) =>
+      apiFetch(`/api/v1/meetings/${sessionId}/participants`),
+
+    summarize: (sessionId) =>
+      apiFetch(`/api/v1/meetings/${sessionId}/summarize`, {
+        method: 'POST',
       }),
   },
 };

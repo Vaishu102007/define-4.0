@@ -42,6 +42,9 @@ async def create_tables():
             "ALTER TABLE transcript_segments ADD COLUMN speaker_role VARCHAR(64) DEFAULT 'host'",
             "ALTER TABLE transcript_segments ADD COLUMN audio_channel VARCHAR(64) DEFAULT 'user_mic'",
             "ALTER TABLE transcript_segments ADD COLUMN confidence FLOAT DEFAULT 1.0",
+            "ALTER TABLE session_summaries ADD COLUMN key_points JSON",
+            "ALTER TABLE session_summaries ADD COLUMN important_points JSON",
+            "ALTER TABLE session_summaries ADD COLUMN executive_summary TEXT",
         ]
         for m in migrations:
             try:

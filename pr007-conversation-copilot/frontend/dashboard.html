@@ -6,10 +6,56 @@
   <title>Dashboard &amp; Google Calendar — Nimad AI Conversation Copilot</title>
   <meta name="description" content="Manage your Google Calendar meetings, track attended and upcoming sessions, and review instant AI transcripts, questions, and answers." />
   <link rel="stylesheet" href="/static/base.css" />
+  <script src="/config.js"></script>
   <link rel="stylesheet" href="/static/components.css" />
   <link rel="stylesheet" href="/static/calendar.css" />
+  <style>
+    html {
+      background: #020205 !important;
+    }
+    body {
+      background: transparent !important;
+      position: relative;
+      min-height: 100vh;
+    }
+    #shader-background-canvas {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      z-index: 1 !important;
+      pointer-events: none !important;
+      display: block !important;
+      opacity: 0.72 !important;
+      transition: opacity 0.3s ease;
+    }
+    .navbar, .hero, main {
+      position: relative;
+      z-index: 2;
+    }
+    .calendar-workspace-card {
+      background: rgba(10, 10, 14, 0.82) !important;
+      backdrop-filter: blur(24px) !important;
+      -webkit-backdrop-filter: blur(24px) !important;
+    }
+    .calendar-card {
+      background: rgba(14, 14, 18, 0.86) !important;
+    }
+    .day-summary-panel {
+      background: rgba(14, 14, 18, 0.86) !important;
+    }
+    .hero {
+      background: transparent !important;
+    }
+    .hero::before {
+      display: none !important;
+    }
+  </style>
 </head>
-<body>
+<body style="background:transparent">
+  <!-- Interactive WebGL Shader Background (Exclusive to Dashboard Screen) -->
+  <canvas id="shader-background-canvas" style="position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;pointer-events:none;display:block"></canvas>
   <!-- Navbar -->
   <nav class="navbar" role="navigation">
     <div style="display:flex;align-items:center;gap:18px;flex:1">
@@ -34,16 +80,6 @@
   <!-- Hero -->
   <section class="hero">
     <div class="container" style="position:relative">
-      <!-- Hero Text Logo Video Backdrop (Positioned directly behind hero texts, looping every 10s) -->
-      <div class="hero-text-video-backdrop" aria-hidden="true">
-        <video class="hero-logo-video" id="dashboard-hero-logo-video" autoplay muted loop playsinline preload="auto">
-          <source src="/assets/gemeni_imported_video_96cdd6a6.mp4" type="video/mp4">
-          <source src="/assets/gemini_generated_video_96cdd6a6.mp4" type="video/mp4">
-          <source src="/assets/background.mp4" type="video/mp4">
-        </video>
-        <div class="hero-video-glow"></div>
-        <div class="hero-video-radial-mask"></div>
-      </div>
       <div class="hero-badge">
         <span class="neon-pad neon-pad-xs neon-pad-silver">
           <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
@@ -232,6 +268,10 @@
   <script type="module">
     import { api } from '/js/api.js';
     import { toast, showModal, closeModal, setLoading, timeAgo, escapeHtml } from '/js/components/ui.js';
+    import { initShaderBackground } from '/js/components/shader-background.js?v=4';
+
+    // Initialize WebGL shader animation exclusively for dashboard
+    initShaderBackground('shader-background-canvas');
 
     function formatIsoDate(d) {
       if (!d) return '';
@@ -241,32 +281,38 @@
       return `${year}-${month}-${day}`;
     }
 
-    // Auth guard
-    if (!localStorage.getItem('copilot_token')) {
-      window.location.href = '/';
+    // Auth guard & user profile loading
+    const token = localStorage.getItem('copilot_token');
+    if (!token) {
+      window.location.href = '/login';
     }
 
     window.logout = () => {
       localStorage.removeItem('copilot_token');
-      window.location.href = '/';
+      localStorage.removeItem('copilot_user');
+      window.location.href = '/login';
     };
 
-    // Load user info
-    api.auth.me().then(user => {
-      document.getElementById('user-display').textContent = user.display_name;
-    }).catch(() => window.logout());
+    if (token) {
+      api.auth.me().then(user => {
+        const uEl = document.getElementById('user-display');
+        if (uEl && user && user.display_name) {
+          uEl.textContent = user.display_name;
+        }
+      }).catch(err => {
+        console.warn('Could not fetch user profile:', err);
+      });
+    }
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // Calendar State & Data Model
+    // Calendar State & Baseline Data Model
     // ─────────────────────────────────────────────────────────────────────────────
     const now = new Date();
     let currentCalYear = now.getFullYear();
     let currentCalMonth = now.getMonth(); // 0-indexed
     let selectedDateIso = formatIsoDate(new Date());
     let activeUpcomingMeeting = null;
-    let meetingsStore = [];
 
-    // Realistic baseline meetings enriched with transcripts and Q&As
     function getBaselineMeetings() {
       const todayStr = formatIsoDate(new Date());
       const yesterday = new Date();
@@ -453,86 +499,46 @@
       ];
     }
 
-    function formatIsoDate(d) {
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    }
+    let meetingsStore = getBaselineMeetings();
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // Initializer: Load Real Sessions + Merge with Google Calendar
+    // Calendar Count Updates
     // ─────────────────────────────────────────────────────────────────────────────
-    async function loadCalendarMeetings() {
-      const baseline = getBaselineMeetings();
-      try {
-        const backendSessions = await api.sessions.list();
-        const realMapped = backendSessions.map(s => {
-          const sDate = s.created_at ? formatIsoDate(new Date(s.created_at)) : formatIsoDate(new Date());
-          const sTime = s.created_at ? new Date(s.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '10:00 AM';
-          const isAttended = (s.status === 'ended');
-          return {
-            id: s.id,
-            title: s.title,
-            date: sDate,
-            time: sTime,
-            duration: '30 mins',
-            status: isAttended ? 'attended' : 'upcoming',
-            platform: s.platform_source === 'google_meet' ? 'Google Meet' : 'Nimad Room',
-            meeting_url: s.external_meeting_url || `/session/${s.id}`,
-            attendees: s.audience || 'Attenders',
-            objective: s.objective || 'Live conversation intelligence',
-            desired_outcome: s.desired_outcome || 'Verified decisions and action points',
-            transcripts: [],
-            qa_list: s.important_questions ? [{
-              speaker: 'Pre-meeting Goal',
-              question: s.important_questions,
-              answer: 'Automated AI Easy Answers generated live during meeting.',
-              talking_points: ['Instant talking points generated based on tone: ' + (s.tone || 'professional')]
-            }] : [],
-            decisions: [],
-            actions: []
-          };
-        });
-
-        const existingIds = new Set(realMapped.map(m => m.id));
-        meetingsStore = [...realMapped, ...baseline.filter(b => !existingIds.has(b.id))];
-      } catch (err) {
-        console.warn('Could not fetch backend sessions, using baseline calendar:', err);
-        meetingsStore = baseline;
-      }
-
-      updateCalendarCounts();
-      renderCalendar();
-      checkUpcomingNotifications();
-      renderDaySummaryPanel(selectedDateIso);
-    }
-
     function updateCalendarCounts() {
       const total = meetingsStore.length;
       const attended = meetingsStore.filter(m => m.status === 'attended').length;
       const upcoming = meetingsStore.filter(m => m.status === 'upcoming').length;
 
-      document.getElementById('count-attended').textContent = attended;
-      document.getElementById('count-upcoming').textContent = upcoming;
+      const cntAtt = document.getElementById('count-attended');
+      const cntUpc = document.getElementById('count-upcoming');
+      if (cntAtt) cntAtt.textContent = attended;
+      if (cntUpc) cntUpc.textContent = upcoming;
 
-      document.getElementById('stats-bar').style.display = 'flex';
-      document.getElementById('stat-total').textContent = total;
-      document.getElementById('stat-attended').textContent = attended;
-      document.getElementById('stat-upcoming').textContent = upcoming;
+      const statsBar = document.getElementById('stats-bar');
+      if (statsBar) statsBar.style.display = 'flex';
+      const statTot = document.getElementById('stat-total');
+      const statAtt = document.getElementById('stat-attended');
+      const statUpc = document.getElementById('stat-upcoming');
+      if (statTot) statTot.textContent = total;
+      if (statAtt) statAtt.textContent = attended;
+      if (statUpc) statUpc.textContent = upcoming;
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // Simple Small Calendar Month Grid Renderer with Shaded Dates
+    // Mini Calendar Days Grid Renderer
     // ─────────────────────────────────────────────────────────────────────────────
     function renderCalendar() {
       const monthNames = [
         'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'
       ];
-      document.getElementById('cal-month-display').textContent = `${monthNames[currentCalMonth]} ${currentCalYear}`;
+      const monthTitleEl = document.getElementById('cal-month-display');
+      if (monthTitleEl) {
+        monthTitleEl.textContent = `${monthNames[currentCalMonth]} ${currentCalYear}`;
+      }
 
       const gridEl = document.getElementById('mini-cal-days-grid');
+      if (!gridEl) return;
       gridEl.innerHTML = '';
 
       const firstDayOfMonth = new Date(currentCalYear, currentCalMonth, 1);
@@ -600,9 +606,9 @@
       if (hasAttended && hasUpcoming) {
         titleTooltip += ` — Attended & Upcoming Meetings`;
       } else if (hasAttended) {
-        titleTooltip += ` — Attended Meeting Occurred (Shaded)`;
+        titleTooltip += ` — Attended Meeting Occurred (Shaded Silver)`;
       } else if (hasUpcoming) {
-        titleTooltip += ` — Future Meeting Scheduled (Shaded)`;
+        titleTooltip += ` — Future Meeting Scheduled (Shaded Emerald Glow)`;
       }
       cell.title = titleTooltip;
 
@@ -621,7 +627,6 @@
           renderCalendar();
           renderDaySummaryPanel(isoDate);
 
-          // If date has meetings, and user double clicks or single clicks, open modal if 1 meeting
           if (dayMeetings && dayMeetings.length === 1) {
             openMeetingDetailsModal(dayMeetings[0].id);
           }
@@ -632,14 +637,15 @@
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // Selected Day Summary Panel (Right side of Calendar Workspace)
+    // Selected Day Summary Panel
     // ─────────────────────────────────────────────────────────────────────────────
     function renderDaySummaryPanel(isoDate) {
       const panelList = document.getElementById('panel-meetings-list');
       const titleEl = document.getElementById('panel-selected-date-title');
       const subtitleEl = document.getElementById('panel-selected-date-subtitle');
-      const todayStr = formatIsoDate(new Date());
+      if (!panelList || !titleEl || !subtitleEl) return;
 
+      const todayStr = formatIsoDate(new Date());
       const dObj = new Date(isoDate + 'T00:00:00');
       const formattedDateStr = dObj.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
 
@@ -705,85 +711,92 @@
       }).join('');
     }
 
-    window.scheduleForSelectedDate = () => {
-      openScheduleMeetingModal(selectedDateIso);
-    };
-
     // ─────────────────────────────────────────────────────────────────────────────
-    // Upcoming Meeting Notification Engine
+    // Upcoming Meeting Notification Banner
     // ─────────────────────────────────────────────────────────────────────────────
     function checkUpcomingNotifications() {
       const todayStr = formatIsoDate(new Date());
       const upcoming = meetingsStore.filter(m => m.status === 'upcoming');
+      const banner = document.getElementById('upcoming-notification-banner');
+      if (!banner) return;
 
       if (!upcoming.length) {
-        document.getElementById('upcoming-notification-banner').style.display = 'none';
+        banner.style.display = 'none';
         return;
       }
 
       activeUpcomingMeeting = upcoming[0];
-      const banner = document.getElementById('upcoming-notification-banner');
       banner.style.display = 'flex';
 
-      document.getElementById('alert-meeting-title').textContent = activeUpcomingMeeting.title;
-      document.getElementById('alert-meeting-time').textContent =
-        `${activeUpcomingMeeting.date === todayStr ? 'Today' : activeUpcomingMeeting.date} at ${activeUpcomingMeeting.time} • ${activeUpcomingMeeting.platform || 'Google Meet'}`;
-
+      const titleEl = document.getElementById('alert-meeting-title');
+      const timeEl = document.getElementById('alert-meeting-time');
       const countdownEl = document.getElementById('alert-countdown-pill');
-      if (activeUpcomingMeeting.date === todayStr) {
-        countdownEl.textContent = 'STARTS TODAY';
-      } else {
-        countdownEl.textContent = `SCHEDULED FOR ${activeUpcomingMeeting.date}`;
+
+      if (titleEl) titleEl.textContent = activeUpcomingMeeting.title;
+      if (timeEl) {
+        timeEl.textContent = `${activeUpcomingMeeting.date === todayStr ? 'Today' : activeUpcomingMeeting.date} at ${activeUpcomingMeeting.time} • ${activeUpcomingMeeting.platform || 'Google Meet'}`;
       }
 
-      if (!window.__hasAlertedUpcoming && activeUpcomingMeeting.date === todayStr) {
-        window.__hasAlertedUpcoming = true;
-        setTimeout(() => {
-          toast(`Upcoming Meeting Today: "${activeUpcomingMeeting.title}" at ${activeUpcomingMeeting.time}`, 'info');
-        }, 1500);
+      if (countdownEl) {
+        if (activeUpcomingMeeting.date === todayStr) {
+          countdownEl.textContent = 'STARTS TODAY';
+        } else {
+          countdownEl.textContent = `SCHEDULED FOR ${activeUpcomingMeeting.date}`;
+        }
       }
     }
 
-    window.requestNotificationPermission = async () => {
-      if (!('Notification' in window)) {
-        toast('Browser notifications are not supported in this browser.', 'warning');
-        return;
-      }
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Load Backend Sessions Asynchronously & Merge
+    // ─────────────────────────────────────────────────────────────────────────────
+    async function loadCalendarMeetings() {
       try {
-        const perm = await Notification.requestPermission();
-        if (perm === 'granted') {
-          toast('Desktop notifications enabled! You will be alerted before meetings.', 'success');
-          document.getElementById('btn-request-notify-perm').textContent = 'Desktop Alerts Enabled';
-          new Notification('Nimad AI Conversation Copilot', {
-            body: `Alerts active for upcoming Google Calendar meetings. Next: ${activeUpcomingMeeting?.title || 'Meeting'}`,
-            icon: '/assets/nimad-symbol-white.png'
+        const backendSessions = await api.sessions.list();
+        if (backendSessions && backendSessions.length) {
+          const realMapped = backendSessions.map(s => {
+            const sDate = s.created_at ? formatIsoDate(new Date(s.created_at)) : formatIsoDate(new Date());
+            const sTime = s.created_at ? new Date(s.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '10:00 AM';
+            const isAttended = (s.status === 'ended');
+            return {
+              id: s.id,
+              title: s.title,
+              date: sDate,
+              time: sTime,
+              duration: '45 mins',
+              status: isAttended ? 'attended' : 'upcoming',
+              platform: s.platform_source === 'google_meet' ? 'Google Meet' : 'Nimad Room',
+              meeting_url: s.external_meeting_url || `/session/${s.id}`,
+              attendees: s.audience || 'Team Members',
+              objective: s.objective || 'Live conversation intelligence',
+              desired_outcome: s.desired_outcome || 'Verified decisions and action points',
+              transcripts: [],
+              qa_list: s.important_questions ? [{
+                speaker: 'Prepared Agenda Goal',
+                question: s.important_questions,
+                answer: 'Automated AI Easy Answers generated live during meeting.',
+                talking_points: ['Tone alignment: ' + (s.tone || 'professional')]
+              }] : [],
+              decisions: [],
+              actions: []
+            };
           });
-        } else {
-          toast('Notification permission was dismissed or blocked.', 'warning');
+
+          const baseline = getBaselineMeetings();
+          const existingIds = new Set(realMapped.map(m => m.id));
+          meetingsStore = [...realMapped, ...baseline.filter(b => !existingIds.has(b.id))];
+
+          updateCalendarCounts();
+          renderCalendar();
+          checkUpcomingNotifications();
+          renderDaySummaryPanel(selectedDateIso);
         }
       } catch (err) {
-        toast(`Notification error: ${err.message}`, 'error');
+        console.warn('Backend sessions not loaded; using baseline demo calendar:', err);
       }
-    };
-
-    window.viewUpcomingMeetingPrep = () => {
-      if (activeUpcomingMeeting) {
-        openMeetingDetailsModal(activeUpcomingMeeting.id);
-      }
-    };
-
-    window.joinUpcomingMeetingNow = () => {
-      if (activeUpcomingMeeting) {
-        if (activeUpcomingMeeting.meeting_url.startsWith('http')) {
-          window.open(activeUpcomingMeeting.meeting_url, '_blank');
-        } else {
-          window.location.href = activeUpcomingMeeting.meeting_url;
-        }
-      }
-    };
+    }
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // Calendar Navigation & Controls
+    // Exposed Global Functions for HTML Button Onclick Handlers
     // ─────────────────────────────────────────────────────────────────────────────
     window.navigateCalendarMonth = (delta) => {
       currentCalMonth += delta;
@@ -807,26 +820,152 @@
     };
 
     window.syncGoogleCalendar = (btn) => {
-      setLoading(btn, true, 'Syncing with Google…');
+      if (btn) setLoading(btn, true, 'Syncing with Google…');
       setTimeout(() => {
-        setLoading(btn, false);
+        if (btn) setLoading(btn, false);
         loadCalendarMeetings();
         toast('Google Calendar synchronized successfully! All events and attendee lists up to date.', 'success');
-      }, 700);
+      }, 600);
+    };
+
+    window.scheduleForSelectedDate = () => {
+      window.openScheduleMeetingModal(selectedDateIso);
+    };
+
+    window.openNewSessionModal = () => {
+      window.openScheduleMeetingModal();
+    };
+
+    window.joinMeetingPrompt = () => {
+      showModal(`
+        <div class="modal-header">
+          <h3>Join Meeting Room</h3>
+          <button class="btn btn-ghost btn-icon" onclick="this.closest('.modal-overlay').remove()">✕</button>
+        </div>
+        <div class="modal-body" style="gap:14px">
+          <p style="font-size:0.84rem;color:var(--clr-text-muted)">
+            Paste any Nimad meeting link, room code, Google Meet URL, or Zoom URL:
+          </p>
+          <div class="form-group">
+            <label class="form-label">Meeting Link or Room Code *</label>
+            <input id="prompt-join-code" class="form-input" type="text" placeholder="e.g. http://localhost:8000/session/... or ABC12345" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Your Name</label>
+            <input id="prompt-join-name" class="form-input" type="text" placeholder="Your display name" value="Attendee" />
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:10px">
+            <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+            <button class="btn btn-primary" id="btn-modal-join-submit" onclick="executeModalJoinMeeting(this)" style="background:#ffffff;color:#000000;font-weight:800">
+              Join Meeting →
+            </button>
+          </div>
+        </div>
+      `);
+    };
+
+    window.executeModalJoinMeeting = async (btn) => {
+      const code = (document.getElementById('prompt-join-code')?.value || '').trim();
+      const name = (document.getElementById('prompt-join-name')?.value || '').trim() || 'Attendee';
+      if (!code) {
+        toast('Please enter a meeting link or room code', 'warning');
+        return;
+      }
+      setLoading(btn, true, 'Connecting…');
+      try {
+        const res = await api.meetings.join(code, name);
+        if (res && res.access_token) {
+          localStorage.setItem('copilot_token', res.access_token);
+        }
+        toast(`Joined room "${res.title}". Entering…`, 'success');
+        window.location.href = res.meeting_url || `/session/${res.session_id}`;
+      } catch (err) {
+        toast(`Failed to join: ${err.message}`, 'error');
+        setLoading(btn, false, 'Join Meeting →');
+      }
+    };
+
+    window.requestNotificationPermission = async () => {
+      if (!('Notification' in window)) {
+        toast('Browser notifications are not supported in this browser.', 'warning');
+        return;
+      }
+      try {
+        const perm = await Notification.requestPermission();
+        if (perm === 'granted') {
+          toast('Desktop notifications enabled! You will be alerted before meetings.', 'success');
+          const btn = document.getElementById('btn-request-notify-perm');
+          if (btn) btn.textContent = 'Desktop Alerts Enabled';
+          new Notification('Nimad AI Conversation Copilot', {
+            body: `Alerts active for upcoming Google Calendar meetings. Next: ${activeUpcomingMeeting?.title || 'Meeting'}`,
+            icon: '/assets/nimad-symbol-white.png'
+          });
+        } else {
+          toast('Notification permission was dismissed or blocked.', 'warning');
+        }
+      } catch (err) {
+        toast(`Notification error: ${err.message}`, 'error');
+      }
+    };
+
+    window.viewUpcomingMeetingPrep = () => {
+      if (activeUpcomingMeeting) {
+        window.openMeetingDetailsModal(activeUpcomingMeeting.id);
+      }
+    };
+
+    window.joinUpcomingMeetingNow = () => {
+      if (activeUpcomingMeeting) {
+        if (activeUpcomingMeeting.meeting_url.startsWith('http')) {
+          window.open(activeUpcomingMeeting.meeting_url, '_blank');
+        } else {
+          window.location.href = activeUpcomingMeeting.meeting_url;
+        }
+      }
     };
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // Meeting Intelligence Modal (Details, Transcripts, Questions & Answers)
+    // Meeting Intelligence Modal
     // ─────────────────────────────────────────────────────────────────────────────
-    window.openMeetingDetailsModal = (meetingId) => {
+    window.openMeetingDetailsModal = async (meetingId) => {
       const meeting = meetingsStore.find(m => m.id === meetingId);
       if (!meeting) return;
 
+      // Asynchronously enrich meeting if it came from backend and has no transcripts yet
+      if (meeting.transcripts && meeting.transcripts.length === 0 && !meeting.id.startsWith('cal-')) {
+        try {
+          const [tData, dData, aData] = await Promise.all([
+            api.transcript.list(meeting.id).catch(() => []),
+            api.decisions.list(meeting.id).catch(() => []),
+            api.actions.list(meeting.id).catch(() => [])
+          ]);
+          if (tData && tData.length) {
+            meeting.transcripts = tData.map(t => ({
+              time: t.created_at ? new Date(t.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '',
+              speaker: t.speaker_label || 'Speaker',
+              text: t.text
+            }));
+          }
+          if (dData && dData.length) {
+            meeting.decisions = dData.map(d => ({
+              text: d.decision_text,
+              status: d.status || 'CONFIRMED'
+            }));
+          }
+          if (aData && aData.length) {
+            meeting.actions = aData.map(a => ({
+              task: a.description,
+              owner: a.owner || 'Unassigned',
+              due: a.due_date || 'TBD'
+            }));
+          }
+        } catch (_) {}
+      }
+
       const isAttended = (meeting.status === 'attended');
 
-      const overlay = showModal(`
+      showModal(`
         <div class="meeting-modal-container">
-          <!-- Modal Header -->
           <div class="meeting-modal-header">
             <div class="meeting-modal-title-area">
               <h3>${escapeHtml(meeting.title)}</h3>
@@ -855,7 +994,6 @@
             </div>
           </div>
 
-          <!-- Modal Tabs -->
           <div class="meeting-modal-tabs">
             <button class="meeting-tab-btn active" id="mtab-btn-qa" onclick="switchMeetingModalTab('qa')">
               <span class="neon-pad neon-pad-xs neon-pad-amber"><svg viewBox="0 0 24 24"><path d="M12 2v2m0 16v2m-8-10H2m20 0h-2m-2.9-6.1l-1.4 1.4M6.3 17.7l-1.4 1.4m0-12.8l1.4 1.4m11.4 11.4l1.4 1.4"/></svg></span>
@@ -875,10 +1013,7 @@
             </button>
           </div>
 
-          <!-- Modal Body Content -->
           <div class="meeting-modal-body">
-            
-            <!-- TAB 1: Questions & Answers -->
             <div id="mtab-pane-qa">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
                 <p style="font-size:0.85rem;color:#a1a1aa">
@@ -888,13 +1023,11 @@
                   + Ask New Question
                 </button>
               </div>
-
               <div class="qa-card-list" id="modal-qa-card-list">
                 ${renderMeetingQaCards(meeting.qa_list)}
               </div>
             </div>
 
-            <!-- TAB 2: Meeting Transcripts -->
             <div id="mtab-pane-transcripts" style="display:none">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">
                 <input type="text" id="transcript-search-input" class="form-input" placeholder="Search transcript by keyword or speaker…" style="max-width:320px;padding:8px 12px;font-size:0.82rem" oninput="filterModalTranscripts()" />
@@ -902,13 +1035,11 @@
                   Copy Full Transcript
                 </button>
               </div>
-
               <div id="modal-transcript-list">
                 ${renderMeetingTranscriptBubbles(meeting.transcripts)}
               </div>
             </div>
 
-            <!-- TAB 3: Overview & Objectives -->
             <div id="mtab-pane-overview" style="display:none">
               <div style="background:rgba(20,20,26,0.85);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:18px;margin-bottom:16px">
                 <div style="font-size:0.75rem;font-family:var(--font-mono);color:#ffffff;font-weight:800;text-transform:uppercase;margin-bottom:6px">
@@ -918,7 +1049,6 @@
                   ${escapeHtml(meeting.objective || 'Not specified')}
                 </div>
               </div>
-
               <div style="background:rgba(20,20,26,0.85);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:18px;margin-bottom:16px">
                 <div style="font-size:0.75rem;font-family:var(--font-mono);color:#ffffff;font-weight:800;text-transform:uppercase;margin-bottom:6px">
                   Desired Target Outcome
@@ -927,7 +1057,6 @@
                   ${escapeHtml(meeting.desired_outcome || 'Verified agreements and consensus')}
                 </div>
               </div>
-
               <div style="background:rgba(20,20,26,0.85);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:18px">
                 <div style="font-size:0.75rem;font-family:var(--font-mono);color:#ffffff;font-weight:800;text-transform:uppercase;margin-bottom:6px">
                   Attenders &amp; Stakeholders
@@ -938,7 +1067,6 @@
               </div>
             </div>
 
-            <!-- TAB 4: Decisions & Actions -->
             <div id="mtab-pane-decisions" style="display:none">
               <div style="margin-bottom:18px">
                 <h4 style="font-size:0.95rem;font-weight:800;color:#ffffff;margin-bottom:10px">Immutable Decision Ledger</h4>
@@ -955,7 +1083,6 @@
                   <p style="font-size:0.85rem;color:#a1a1aa">No decisions logged yet.</p>
                 `}
               </div>
-
               <div>
                 <h4 style="font-size:0.95rem;font-weight:800;color:#ffffff;margin-bottom:10px">Action Commitments</h4>
                 ${(meeting.actions && meeting.actions.length) ? `
@@ -972,10 +1099,8 @@
                 `}
               </div>
             </div>
-
           </div>
 
-          <!-- Modal Footer -->
           <div class="modal-footer" style="padding:16px 24px;border-top:1px solid rgba(255,255,255,0.12)">
             <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Close</button>
             <button class="btn btn-secondary" onclick="exportMeetingIntelligence('${meeting.id}')">Export TXT / Markdown</button>
@@ -1054,13 +1179,16 @@
 
     window.switchMeetingModalTab = (tab) => {
       ['qa', 'transcripts', 'overview', 'decisions'].forEach(t => {
-        document.getElementById(`mtab-pane-${t}`).style.display = (t === tab ? 'block' : 'none');
-        document.getElementById(`mtab-btn-${t}`).classList.toggle('active', t === tab);
+        const pane = document.getElementById(`mtab-pane-${t}`);
+        const btn = document.getElementById(`mtab-btn-${t}`);
+        if (pane) pane.style.display = (t === tab ? 'block' : 'none');
+        if (btn) btn.classList.toggle('active', t === tab);
       });
     };
 
     window.filterModalTranscripts = () => {
-      const q = (document.getElementById('transcript-search-input').value || '').toLowerCase().trim();
+      const inputEl = document.getElementById('transcript-search-input');
+      const q = (inputEl ? inputEl.value : '').toLowerCase().trim();
       const bubbles = document.querySelectorAll('.modal-transcript-bubble');
       bubbles.forEach(b => {
         const text = b.getAttribute('data-text') || '';
@@ -1092,11 +1220,15 @@
       if (!meeting.qa_list) meeting.qa_list = [];
       meeting.qa_list.unshift(newQa);
 
-      document.getElementById('modal-qa-card-list').innerHTML = renderMeetingQaCards(meeting.qa_list);
-      document.getElementById('mtab-btn-qa').innerHTML = `
-        <span class="neon-pad neon-pad-xs neon-pad-amber"><svg viewBox="0 0 24 24"><path d="M12 2v2m0 16v2m-8-10H2m20 0h-2m-2.9-6.1l-1.4 1.4M6.3 17.7l-1.4 1.4m0-12.8l1.4 1.4m11.4 11.4l1.4 1.4"/></svg></span>
-        Questions &amp; Answers (${meeting.qa_list.length})
-      `;
+      const qListEl = document.getElementById('modal-qa-card-list');
+      if (qListEl) qListEl.innerHTML = renderMeetingQaCards(meeting.qa_list);
+      const qTabBtn = document.getElementById('mtab-btn-qa');
+      if (qTabBtn) {
+        qTabBtn.innerHTML = `
+          <span class="neon-pad neon-pad-xs neon-pad-amber"><svg viewBox="0 0 24 24"><path d="M12 2v2m0 16v2m-8-10H2m20 0h-2m-2.9-6.1l-1.4 1.4M6.3 17.7l-1.4 1.4m0-12.8l1.4 1.4m11.4 11.4l1.4 1.4"/></svg></span>
+          Questions &amp; Answers (${meeting.qa_list.length})
+        `;
+      }
       toast('New question and instant answer added!', 'success');
     };
 
@@ -1141,10 +1273,103 @@
     // ─────────────────────────────────────────────────────────────────────────────
     // Schedule Meeting in Google Calendar Modal
     // ─────────────────────────────────────────────────────────────────────────────
+    window.updateMeetingScoreCalculation = () => {
+      const titleEl = document.getElementById('sm-title');
+      const objEl = document.getElementById('sm-objective');
+      const dateEl = document.getElementById('sm-date');
+      const scoreNumEl = document.getElementById('sm-score-num');
+      const scoreDescEl = document.getElementById('sm-score-desc');
+      const scorePanelEl = document.getElementById('sm-score-panel');
+      if (!scoreNumEl || !scoreDescEl) return;
+
+      const rawTitle = (titleEl ? titleEl.value : '').trim().toLowerCase();
+      const rawMotive = (objEl ? objEl.value : '').trim().toLowerCase();
+      const dateVal = (dateEl && dateEl.value) ? dateEl.value : formatIsoDate(new Date());
+      const targetYearMonth = dateVal.substring(0, 7);
+
+      const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      const [y, m] = targetYearMonth.split('-');
+      const monthLabel = (y && m) ? `${monthNames[parseInt(m, 10) - 1]} ${y}` : 'this month';
+
+      if (!rawTitle) {
+        scoreNumEl.textContent = '0';
+        scoreDescEl.textContent = `Type a meeting title to compute completed sessions in ${monthLabel}.`;
+        if (scorePanelEl) scorePanelEl.style.borderColor = 'rgba(255,255,255,0.18)';
+        return;
+      }
+
+      const doneStatuses = new Set(['attended', 'ended', 'completed', 'done']);
+
+      const matches = (meetingsStore || []).filter(item => {
+        // 1. Must be done / completed
+        const itemStatus = (item.status || '').toLowerCase();
+        if (!doneStatuses.has(itemStatus)) return false;
+
+        // 2. Must be in the same month
+        const itemDate = (item.date || '').substring(0, 7);
+        if (itemDate !== targetYearMonth) return false;
+
+        // 3. Must match meeting title (case-insensitive)
+        const itemTitle = (item.title || '').trim().toLowerCase();
+        const titleMatch = (itemTitle === rawTitle) ||
+                           (rawTitle.length >= 4 && itemTitle.includes(rawTitle)) ||
+                           (itemTitle.length >= 4 && rawTitle.includes(itemTitle));
+        if (!titleMatch) return false;
+
+        // 4. Must match motive if motive was specified
+        if (rawMotive) {
+          const itemObjective = (item.objective || item.desired_outcome || '').trim().toLowerCase();
+          if (!itemObjective) return false;
+          const motiveMatch = (itemObjective === rawMotive) ||
+                              (rawMotive.length >= 4 && itemObjective.includes(rawMotive)) ||
+                              (itemObjective.length >= 4 && rawMotive.includes(itemObjective));
+          if (!motiveMatch) return false;
+        }
+
+        return true;
+      });
+
+      const count = matches.length;
+      scoreNumEl.textContent = String(count);
+
+      if (rawMotive) {
+        if (count > 0) {
+          scoreDescEl.innerHTML = `<strong style="color:#ffffff">${count} completed meeting${count === 1 ? '' : 's'}</strong> done in ${monthLabel} with matching title and motive.`;
+          if (scorePanelEl) {
+            scorePanelEl.style.borderColor = 'rgba(255, 255, 255, 0.6)';
+            scorePanelEl.style.background = 'rgba(255, 255, 255, 0.08)';
+          }
+        } else {
+          scoreDescEl.textContent = `0 completed meetings found in ${monthLabel} matching both title and motive.`;
+          if (scorePanelEl) {
+            scorePanelEl.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+            scorePanelEl.style.background = 'rgba(255, 255, 255, 0.04)';
+          }
+        }
+      } else {
+        if (count > 0) {
+          scoreDescEl.innerHTML = `<strong style="color:#ffffff">${count} completed meeting${count === 1 ? '' : 's'}</strong> done in ${monthLabel} with this title. Enter motive to verify objective match.`;
+          if (scorePanelEl) {
+            scorePanelEl.style.borderColor = 'rgba(255, 255, 255, 0.45)';
+            scorePanelEl.style.background = 'rgba(255, 255, 255, 0.06)';
+          }
+        } else {
+          scoreDescEl.textContent = `0 completed meetings in ${monthLabel} with this title.`;
+          if (scorePanelEl) {
+            scorePanelEl.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+            scorePanelEl.style.background = 'rgba(255, 255, 255, 0.04)';
+          }
+        }
+      }
+    };
+
     window.openScheduleMeetingModal = (preselectedDate = null) => {
       const defaultDate = preselectedDate || formatIsoDate(new Date());
 
-      const overlay = showModal(`
+      showModal(`
         <div class="modal-header">
           <h3>Schedule Meeting in Google Calendar</h3>
           <button class="btn btn-ghost btn-icon" onclick="this.closest('.modal-overlay').remove()">✕</button>
@@ -1152,13 +1377,32 @@
         <div class="modal-body">
           <div class="form-group">
             <label class="form-label" for="sm-title">Meeting Title <span class="required">*</span></label>
-            <input id="sm-title" class="form-input" type="text" placeholder="e.g. Acme Corp Technical Architecture &amp; Procurement Review" required />
+            <input id="sm-title" class="form-input" type="text" placeholder="e.g. Acme Corp Technical Architecture &amp; Procurement Review" oninput="updateMeetingScoreCalculation()" required />
+
+            <!-- Real-time Monthly Completed Meetings Score -->
+            <div id="sm-score-panel" class="meeting-score-container" style="margin-top:8px;padding:10px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.2);border-radius:10px;display:flex;align-items:center;justify-content:space-between;transition:all 0.2s ease">
+              <div style="flex:1;padding-right:12px">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#ffffff;box-shadow:0 0 6px #ffffff"></span>
+                  <span style="font-size:0.72rem;font-weight:800;letter-spacing:0.06em;color:#e4e4e7">MONTHLY COMPLETED MEETINGS SCORE</span>
+                </div>
+                <div id="sm-score-desc" style="font-size:0.76rem;color:var(--clr-text-muted);margin-top:3px">
+                  0 meetings done this month with matching name &amp; motive
+                </div>
+              </div>
+              <div style="text-align:right">
+                <div id="sm-score-num" style="font-family:var(--font-mono);font-size:1.35rem;font-weight:900;color:#ffffff;line-height:1;background:#090a0d;border:1px solid rgba(255,255,255,0.35);padding:6px 14px;border-radius:8px;box-shadow:0 0 16px rgba(255,255,255,0.12)">
+                  0
+                </div>
+                <div id="sm-score-unit" style="font-size:0.62rem;font-weight:700;color:var(--clr-text-dim);margin-top:3px;letter-spacing:0.04em">DONE SCORE</div>
+              </div>
+            </div>
           </div>
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
             <div class="form-group">
               <label class="form-label" for="sm-date">Meeting Date</label>
-              <input id="sm-date" class="form-input" type="date" value="${defaultDate}" required />
+              <input id="sm-date" class="form-input" type="date" value="${defaultDate}" onchange="updateMeetingScoreCalculation()" required />
             </div>
             <div class="form-group">
               <label class="form-label" for="sm-time">Time</label>
@@ -1182,8 +1426,8 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label" for="sm-objective">Primary Meeting Objective</label>
-            <input id="sm-objective" class="form-input" type="text" placeholder="e.g. Present enterprise failover architecture, verify SOC2 compliance" />
+            <label class="form-label" for="sm-objective">Primary Meeting Objective (Motive)</label>
+            <input id="sm-objective" class="form-input" type="text" placeholder="e.g. Present enterprise failover architecture, verify SOC2 compliance" oninput="updateMeetingScoreCalculation()" />
           </div>
 
           <div class="form-group">
@@ -1211,19 +1455,26 @@
           </button>
         </div>
       `);
+
+      setTimeout(() => {
+        if (typeof window.updateMeetingScoreCalculation === 'function') {
+          window.updateMeetingScoreCalculation();
+        }
+      }, 50);
     };
 
     window.submitScheduleMeeting = async (btn) => {
-      const title = document.getElementById('sm-title').value.trim();
+      const titleEl = document.getElementById('sm-title');
+      const title = titleEl ? titleEl.value.trim() : '';
       if (!title) { toast('Please enter a meeting title', 'error'); return; }
 
-      const date = document.getElementById('sm-date').value;
-      const rawTime = document.getElementById('sm-time').value || '14:00';
-      const platform = document.getElementById('sm-platform').value;
-      const attendees = document.getElementById('sm-attendees').value.trim();
-      const objective = document.getElementById('sm-objective').value.trim();
-      const outcome = document.getElementById('sm-outcome').value.trim();
-      const questions = document.getElementById('sm-questions').value.trim();
+      const date = document.getElementById('sm-date')?.value || formatIsoDate(new Date());
+      const rawTime = document.getElementById('sm-time')?.value || '14:00';
+      const platform = document.getElementById('sm-platform')?.value || 'Google Meet';
+      const attendees = document.getElementById('sm-attendees')?.value.trim() || '';
+      const objective = document.getElementById('sm-objective')?.value.trim() || '';
+      const outcome = document.getElementById('sm-outcome')?.value.trim() || '';
+      const questions = document.getElementById('sm-questions')?.value.trim() || '';
 
       const [h, m] = rawTime.split(':');
       const hourNum = parseInt(h, 10);
@@ -1231,27 +1482,31 @@
       const hour12 = (hourNum % 12) || 12;
       const timeStr = `${hour12}:${m} ${period}`;
 
-      setLoading(btn, true, 'Adding to Calendar…');
+      if (btn) setLoading(btn, true, 'Adding to Calendar…');
 
       try {
-        const session = await api.sessions.create({
-          title,
-          mode: 'group',
-          objective: objective || null,
-          desired_outcome: outcome || null,
-          important_questions: questions || null,
-          audience: attendees || null,
-        });
+        let sessionId = 'gcal-' + Date.now();
+        try {
+          const session = await api.sessions.create({
+            title,
+            mode: 'group',
+            objective: objective || null,
+            desired_outcome: outcome || null,
+            important_questions: questions || null,
+            audience: attendees || null,
+          });
+          if (session && session.id) sessionId = session.id;
+        } catch (_) {}
 
         const newMeeting = {
-          id: session.id || ('gcal-' + Date.now()),
+          id: sessionId,
           title,
           date,
           time: timeStr,
           duration: '45 mins',
           status: 'upcoming',
           platform,
-          meeting_url: (platform === 'Google Meet') ? 'https://meet.google.com/nimad-' + Math.random().toString(36).substring(7) : `/session/${session.id}`,
+          meeting_url: (platform === 'Google Meet') ? 'https://meet.google.com/nimad-' + Math.random().toString(36).substring(7) : `/session/${sessionId}`,
           attendees,
           objective,
           desired_outcome: outcome,
@@ -1273,76 +1528,30 @@
         renderDaySummaryPanel(selectedDateIso);
         checkUpcomingNotifications();
 
-        btn.closest('.modal-overlay').remove();
+        if (btn) {
+          const overlay = btn.closest('.modal-overlay');
+          if (overlay) overlay.remove();
+        }
         toast('Meeting successfully scheduled and added to Google Calendar!', 'success');
       } catch (err) {
         toast(`Failed to schedule meeting: ${err.message}`, 'error');
-        setLoading(btn, false);
+        if (btn) setLoading(btn, false);
       }
     };
 
-    // Quick Live Session Launch
-    window.openNewSessionModal = () => {
-      openScheduleMeetingModal();
-    };
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Synchronous Startup: Render Immediately, then Sync in Background
+    // ─────────────────────────────────────────────────────────────────────────────
+    updateCalendarCounts();
+    renderCalendar();
+    renderDaySummaryPanel(selectedDateIso);
+    checkUpcomingNotifications();
 
-    window.joinMeetingPrompt = () => {
-      const code = prompt('Enter Google Meet Link, Zoom Link, or Nimad Room ID:');
-      if (code && code.trim()) {
-        const clean = code.trim().replace(/^.*\/session\//, '');
-        if (clean.startsWith('http')) {
-          window.open(clean, '_blank');
-        } else {
-          window.location.href = `/session/${clean}`;
-        }
-      }
-    };
-
-    // Initial Load
+    // Background sync from database
     loadCalendarMeetings();
 
-    // Check upcoming meetings every 30 seconds
+    // Periodic check
     setInterval(checkUpcomingNotifications, 30000);
-
-    // Watchdog for dashboard hero logo video 10s looping
-    (function() {
-      const v = document.getElementById('dashboard-hero-logo-video');
-      if (!v) return;
-      v.muted = true;
-      v.defaultMuted = true;
-      v.setAttribute('playsinline', '');
-      v.setAttribute('loop', '');
-      const p = v.play();
-      if (p !== undefined) {
-        p.catch(() => {
-          const unlock = () => {
-            v.play().catch(() => {});
-            document.removeEventListener('click', unlock);
-            document.removeEventListener('touchstart', unlock);
-            document.removeEventListener('keydown', unlock);
-          };
-          document.addEventListener('click', unlock);
-          document.addEventListener('touchstart', unlock);
-          document.addEventListener('keydown', unlock);
-        });
-      }
-      v.addEventListener('ended', () => {
-        v.currentTime = 0;
-        v.play().catch(() => {});
-      });
-      v.addEventListener('timeupdate', () => {
-        if (v.currentTime >= 9.95) {
-          v.currentTime = 0;
-          v.play().catch(() => {});
-        }
-      });
-      setInterval(() => {
-        if (v.paused || v.ended || v.currentTime >= 9.9) {
-          v.currentTime = 0;
-          v.play().catch(() => {});
-        }
-      }, 10000);
-    })();
   </script>
 </body>
 </html>

@@ -74,6 +74,9 @@ class Session(Base):
     semantic_memories: Mapped[list["MeetingSemanticMemory"]] = relationship(
         "MeetingSemanticMemory", back_populates="session", cascade="all, delete-orphan"
     )
+    participants: Mapped[list["SessionParticipant"]] = relationship(
+        "SessionParticipant", back_populates="session", cascade="all, delete-orphan"
+    )
 
 
 class TranscriptSegment(Base):
@@ -135,6 +138,9 @@ class SessionSummary(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
     session_id: Mapped[str] = mapped_column(String(36), ForeignKey("sessions.id"), nullable=False, unique=True)
     summary_text: Mapped[str] = mapped_column(Text, nullable=False)
+    executive_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    key_points: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    important_points: Mapped[list | None] = mapped_column(JSON, nullable=True)
     key_decisions: Mapped[list | None] = mapped_column(JSON, nullable=True)
     unresolved_questions: Mapped[list | None] = mapped_column(JSON, nullable=True)
     follow_up_draft: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -142,6 +148,20 @@ class SessionSummary(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
     session: Mapped["Session"] = relationship("Session", back_populates="summary")
+
+
+class SessionParticipant(Base):
+    __tablename__ = "session_participants"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    session_id: Mapped[str] = mapped_column(String(36), ForeignKey("sessions.id"), nullable=False, index=True)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    display_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[str] = mapped_column(String(50), default="attendee")  # host | attendee
+    joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    session: Mapped["Session"] = relationship("Session", back_populates="participants")
+    user: Mapped["User"] = relationship("User")
 
 
 class AuditEvent(Base):

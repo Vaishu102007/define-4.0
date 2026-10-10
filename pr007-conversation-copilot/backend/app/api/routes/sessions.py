@@ -18,14 +18,15 @@ def _check_ownership(session: Session, user: User):
         raise HTTPException(status_code=403, detail="Access denied")
 
 
-async def _get_session(session_id: str, user: User, db: AsyncSession) -> Session:
+async def _get_session(session_id: str, user: User, db: AsyncSession, require_owner: bool = False) -> Session:
     result = await db.execute(select(Session).where(Session.id == session_id))
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    _check_ownership(session, user)
     if session.status == "deleted":
         raise HTTPException(status_code=410, detail="Session has been deleted")
+    if require_owner:
+        _check_ownership(session, user)
     return session
 
 
@@ -78,7 +79,7 @@ async def get_session(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return await _get_session(session_id, current_user, db)
+    return await _get_session(session_id, current_user, db, require_owner=True)
 
 
 @router.patch("/{session_id}", response_model=SessionOut)

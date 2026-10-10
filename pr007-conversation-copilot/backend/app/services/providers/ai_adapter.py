@@ -177,12 +177,20 @@ async def generate_summary(
         ))
 
     system = """\
-You are a professional conversation summariser. Return ONLY valid JSON with:
+You are a professional conversation summariser. Analyze the transcript from all participants who spoke in the meeting.
+Extract the most important summarize points and key takeaways from the voiced conversation.
+Return ONLY valid JSON with:
 {
-  "summary_text": "2-4 paragraph narrative summary",
+  "summary_text": "2-4 paragraph narrative summary synthesizing the meeting discussion",
+  "executive_summary": "1 paragraph high-level executive recap",
+  "important_points": [
+    "Key discussion point 1 voiced by participant",
+    "Key discussion point 2 voiced by participant",
+    "Key discussion point 3 voiced by participant"
+  ],
   "key_decisions": ["decision 1", ...],
   "unresolved_questions": ["question 1", ...],
-  "follow_up_draft": "draft follow-up email/message"
+  "follow_up_draft": "draft follow-up email/message with next steps"
 }
 Do not invent facts. Use only what is in the provided context.\
 """
@@ -208,7 +216,12 @@ Do not invent facts. Use only what is in the provided context.\
                 raw = raw.split("```")[1]
                 if raw.startswith("json"):
                     raw = raw[4:]
-            return json.loads(raw)
+            parsed = json.loads(raw)
+            if "important_points" not in parsed and "key_points" in parsed:
+                parsed["important_points"] = parsed["key_points"]
+            elif "important_points" in parsed and "key_points" not in parsed:
+                parsed["key_points"] = parsed["important_points"]
+            return parsed
         except Exception as exc:
             logger.error("Summary generation failed (%s) — using fallback summary", exc)
             return _fallback_heuristic_summary(transcript, objective, insights, action_items)
@@ -306,19 +319,64 @@ def _fallback_heuristic_summary(
     if not unresolved:
         unresolved = ["No blocking technical or commercial objections recorded."]
 
+    # Extract distinct voiced statements and important points from transcript
+    important_points = []
+    lines = [line.strip() for line in transcript.split("\n") if line.strip()]
+    
+    seen_points = set()
+    for line in lines:
+        speaker = "Participant"
+        content = line
+        if line.startswith("[") and "]:" in line:
+            parts = line.split("]:", 1)
+            speaker = parts[0][1:].strip()
+            content = parts[1].strip()
+
+        # Skip very short filler phrases
+        if len(content) < 12 or content.lower() in ["hello", "hi", "can you hear me", "thank you", "thanks", "ok"]:
+            continue
+
+        point_entry = f"[{speaker}]: {content}"
+        if point_entry not in seen_points:
+            seen_points.add(point_entry)
+            important_points.append(point_entry)
+
+    # Fallback to insights or general topic if few lines
+    if not important_points:
+        if objective:
+            important_points.append(f"Primary discussion anchored on objective: {objective}")
+        for i in insights:
+            if i.get("content"):
+                important_points.append(i["content"])
+
+    if not important_points:
+        important_points = [
+            "Reviewed meeting goals, collaboration roadmap, and operational alignments.",
+            "Discussed delivery timelines and expectations across participating teams."
+        ]
+
+    exec_summary = (
+        f"Meeting reviewed {objective or 'general alignment and operations'}. "
+        f"Participants voiced key requirements and resolved technical/commercial questions. "
+        f"A total of {len(important_points)} key discussion points were cataloged with actionable next steps."
+    )
+
     summary_paragraphs = [
-        f"This session focused on: {objective or 'general collaborative review'}.",
-        f"Key topics explored during the discussion included technical requirements, deliverables, and operational alignments.",
+        f"This session focused on: {objective or 'collaborative review and project alignment'}.",
+        f"Key topics explored during the discussion included technical requirements, deliverables, and operational alignments across all attenders.",
         f"Total of {len(action_items)} action items and {len(insights)} analytical insights were tracked."
     ]
 
     draft_items = "\n".join(f"- {a.get('description', '')} ({a.get('owner', 'TBD')})" for a in action_items) or "- Follow up on discussed roadmap items"
-    follow_up = f"Hi Team,\n\nThank you for the productive discussion regarding {objective or 'our collaboration'}.\n\nNext Steps:\n{draft_items}\n\nPlease let us know if anything needs adjustment.\n\nBest regards,"
+    follow_up = f"Hi Team,\n\nThank you for the productive discussion regarding {objective or 'our collaboration'}.\n\nKey Takeaways:\n" + "\n".join(f"• {p}" for p in important_points[:5]) + f"\n\nNext Steps:\n{draft_items}\n\nPlease let us know if anything needs adjustment.\n\nBest regards,"
 
     return {
         "summary_text": "\n\n".join(summary_paragraphs),
-        "key_decisions": decisions[:4],
-        "unresolved_questions": unresolved[:4],
+        "executive_summary": exec_summary,
+        "important_points": important_points[:8],
+        "key_points": important_points[:8],
+        "key_decisions": decisions[:5],
+        "unresolved_questions": unresolved[:5],
         "follow_up_draft": follow_up,
     }
 

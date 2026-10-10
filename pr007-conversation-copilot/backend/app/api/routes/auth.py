@@ -23,6 +23,12 @@ async def register(payload: UserCreate, db: AsyncSession = Depends(get_db)):
     db.add(user)
     await db.commit()
     await db.refresh(user)
+    try:
+        from app.db.seed import seed_demo_data_for_user
+        await seed_demo_data_for_user(db, user)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Error seeding demo meetings for new user: %s", e)
     return user
 
 

@@ -20,9 +20,19 @@ from app.services.vector_db_service import VectorDatabaseService
 router = APIRouter(prefix="/api/v1/sessions", tags=["copilot"])
 
 
-def _check_ownership(session: Session, user: User):
-    if session.owner_id != user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+async def _check_session_access(session: Session, user: User, db: AsyncSession):
+    if session.owner_id == user.id:
+        return True
+    from app.models.models import SessionParticipant
+    res = await db.execute(
+        select(SessionParticipant).where(
+            SessionParticipant.session_id == session.id,
+            SessionParticipant.user_id == user.id
+        )
+    )
+    if res.scalar_one_or_none():
+        return True
+    raise HTTPException(status_code=403, detail="Access denied")
 
 
 async def _get_active_session(session_id: str, user: User, db: AsyncSession) -> Session:
@@ -30,9 +40,9 @@ async def _get_active_session(session_id: str, user: User, db: AsyncSession) -> 
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    _check_ownership(session, user)
     if session.status == "deleted":
         raise HTTPException(status_code=410, detail="Session has been deleted")
+    await _check_session_access(session, user, db)
     return session
 
 
@@ -373,8 +383,13 @@ async def generate_session_summary(
         select(SessionSummary).where(SessionSummary.session_id == session_id)
     )
     summary = existing.scalar_one_or_none()
+    imp_pts = summary_data.get("important_points") or summary_data.get("key_points") or []
+    exec_sum = summary_data.get("executive_summary") or ""
     if summary:
         summary.summary_text = summary_data.get("summary_text", "")
+        summary.executive_summary = exec_sum
+        summary.key_points = imp_pts
+        summary.important_points = imp_pts
         summary.key_decisions = summary_data.get("key_decisions", [])
         summary.unresolved_questions = summary_data.get("unresolved_questions", [])
         summary.follow_up_draft = summary_data.get("follow_up_draft", "")
@@ -382,6 +397,9 @@ async def generate_session_summary(
         summary = SessionSummary(
             session_id=session_id,
             summary_text=summary_data.get("summary_text", ""),
+            executive_summary=exec_sum,
+            key_points=imp_pts,
+            important_points=imp_pts,
             key_decisions=summary_data.get("key_decisions", []),
             unresolved_questions=summary_data.get("unresolved_questions", []),
             follow_up_draft=summary_data.get("follow_up_draft", ""),

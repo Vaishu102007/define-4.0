@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 
 from app.core.config import get_settings
 from app.db.database import create_tables
-from app.api.routes import auth, sessions, copilot, integrations, tts
+from app.api.routes import auth, sessions, copilot, integrations, tts, meetings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -21,6 +21,13 @@ settings = get_settings()
 async def lifespan(app: FastAPI):
     logger.info("Starting up Nimad — creating tables if needed...")
     await create_tables()
+    try:
+        from app.db.database import AsyncSessionLocal
+        from app.db.seed import seed_demo_data
+        async with AsyncSessionLocal() as db:
+            await seed_demo_data(db)
+    except Exception as e:
+        logger.warning("Error seeding initial demo data: %s", e)
     logger.info("Nimad DB ready.")
     yield
     logger.info("Nimad shutting down.")
@@ -50,6 +57,7 @@ app.include_router(sessions.router)
 app.include_router(copilot.router)
 app.include_router(integrations.router)
 app.include_router(tts.router)
+app.include_router(meetings.router)
 
 
 @app.get("/healthz")
@@ -149,5 +157,12 @@ if os.path.exists(frontend_path):
     @app.get("/session/{session_id}", response_class=FileResponse)
     async def serve_session(session_id: str):
         return FileResponse(os.path.join(frontend_path, "session.html"), headers=no_cache_headers)
+
+    @app.get("/config.js", response_class=FileResponse)
+    async def serve_config():
+        config_path = os.path.join(frontend_path, "config.js")
+        if os.path.exists(config_path):
+            return FileResponse(config_path, media_type="application/javascript", headers=no_cache_headers)
+        return Response(content="// no custom config", media_type="application/javascript")
 
 

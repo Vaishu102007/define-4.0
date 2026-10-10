@@ -6,6 +6,7 @@
   <title>Meeting Room — AI Conversation Copilot</title>
   <meta name="description" content="AI-powered live audio and video meeting application with real-time speech transcription and instant copilot answers." />
   <link rel="stylesheet" href="/static/base.css" />
+  <script src="/config.js"></script>
   <link rel="stylesheet" href="/static/components.css" />
   <link rel="stylesheet" href="/static/session.css" />
   <link rel="stylesheet" href="/static/integrations.css" />
@@ -16,12 +17,12 @@
   <header class="meeting-topbar">
     <div class="meeting-info">
       <a href="/dashboard" class="btn btn-ghost btn-sm" title="Back to Dashboard" style="padding:4px 8px">← Exit</a>
-      <a href="/integrations" class="btn btn-ghost btn-sm" title="Meeting Integrations" style="padding:4px 8px">🔌 Integrations</a>
+      <a href="/integrations" class="btn btn-ghost btn-sm" title="Meeting Integrations" style="padding:4px 8px">Integrations</a>
       <button class="btn btn-secondary btn-sm" onclick="openImportTranscriptModal()" title="Import conversation transcript" style="padding:4px 10px;font-size:0.75rem">
-        📥 Import
+        Import
       </button>
       <button class="btn btn-secondary btn-sm" onclick="exportActiveTranscript('transcript')" title="Export live meeting transcript as text" style="padding:4px 10px;font-size:0.75rem;border-color:#3b82f6;color:#60a5fa">
-        💾 Export Transcript
+        Export Transcript
       </button>
       <div style="display:flex;align-items:center;gap:6px">
         <img src="/assets/nimad-symbol-white.png" alt="Nimad" style="height:20px;width:auto;">
@@ -30,14 +31,14 @@
       <div class="divider" style="width:1px;height:18px;background:var(--clr-border);margin:0 4px"></div>
       <span id="meeting-title" class="meeting-title">Loading meeting…</span>
       <button class="meeting-badge" id="meeting-link-btn" onclick="copyMeetingLink()" title="Copy invite link for attenders">
-        <span>🔗</span> <span id="meeting-code-display">ROOM-CODE</span>
+        <span style="font-size:0.7rem;font-weight:700;color:var(--clr-text-muted)">LINK:</span> <span id="meeting-code-display">ROOM-CODE</span>
       </button>
     </div>
 
     <div style="display:flex;align-items:center;gap:10px">
       <!-- Active Speaker Picker -->
       <div class="meeting-speaker-picker" style="display:flex;align-items:center;gap:4px">
-        <span style="font-size:.74rem;font-weight:700;color:var(--clr-text-muted)">🎙️ Speaking As:</span>
+        <span style="font-size:.74rem;font-weight:700;color:var(--clr-text-muted)">Speaking As:</span>
         <select id="meeting-speaker-select" class="lang-select" onchange="setActiveSpeaker(this.value)" style="border-color:#3b82f6;color:#93c5fd" title="Select who is currently speaking into the mic">
           <option value="You (Host)" selected>You (Host)</option>
           <option value="Sarah Chen">Sarah Chen (VP Eng)</option>
@@ -49,12 +50,12 @@
 
       <!-- Language Picker -->
       <div class="meeting-lang-picker">
-        <span style="font-size:.74rem;font-weight:700;color:var(--clr-text-muted)">🌐 Lang:</span>
+        <span style="font-size:.74rem;font-weight:700;color:var(--clr-text-muted)">Language:</span>
         <select id="meeting-lang-select" class="lang-select" onchange="changeMeetingLanguage(this.value)">
-          <option value="en-US" selected>🇬🇧 English</option>
-          <option value="en-IN">🇮🇳 English (India)</option>
-          <option value="ta-IN">🇮🇳 தமிழ் (Tamil)</option>
-          <option value="ml-IN">🇮🇳 മലയാളം (Malayalam)</option>
+          <option value="en-US" selected>English (US)</option>
+          <option value="en-IN">English (India)</option>
+          <option value="ta-IN">Tamil (India)</option>
+          <option value="ml-IN">Malayalam (India)</option>
         </select>
       </div>
 
@@ -65,6 +66,9 @@
       <div style="font-family:var(--font-mono);font-size:.8rem;color:#ffffff;padding:2px 8px;background:#18181b;border:1px solid var(--clr-border);border-radius:4px" id="meeting-timer">
         00:00:00
       </div>
+      <button class="btn btn-primary btn-sm" onclick="switchSidebarTab('summary');generateSummary();" style="background:#ffffff;color:#000000;font-weight:800;padding:4px 12px;font-size:0.75rem;box-shadow:0 0 12px rgba(255,255,255,0.25)" title="Generate Important Summary Points from all participants' voiced transcripts">
+        Key Summary Points
+      </button>
       <span id="nav-mode-badge" class="badge mode-badge">VIDEO CALL</span>
       <button class="btn btn-ghost btn-sm" onclick="logout()">Sign Out</button>
     </div>
@@ -78,7 +82,7 @@
       
       <!-- Quick Multi-Speaker Switcher Bar -->
       <div class="quick-speaker-bar" id="quick-speaker-bar" style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:#111216;border:1px solid var(--clr-border);border-radius:8px;margin-bottom:8px;overflow-x:auto;">
-        <span style="font-size:0.75rem;font-weight:700;color:var(--clr-text-muted);white-space:nowrap;">🎙️ Active Speaker (Keys 1-4):</span>
+        <span style="font-size:0.75rem;font-weight:700;color:var(--clr-text-muted);white-space:nowrap;">Active Speaker [Keys 1-4]:</span>
         <button class="speaker-quick-btn active" id="spk-btn-host" onclick="setActiveSpeaker('You (Host)')" style="padding:3px 10px;font-size:0.75rem;border-radius:6px;border:1px solid #3b82f6;background:#1d4ed8;color:#fff;cursor:pointer;">
           You (Host) <span style="opacity:0.7;font-size:0.65rem">[1]</span>
         </button>
@@ -112,12 +116,12 @@
           </div>
 
           <div class="tile-tag">
-            <span id="local-mic-icon">🎙️</span>
+            <span id="local-mic-icon" style="font-size:0.65rem;font-weight:800;background:#27272a;color:#ffffff;padding:1px 4px;border-radius:3px">MIC</span>
             <span id="local-tile-label">You (Host)</span>
             <span id="speaker-badge-local" class="badge" style="background:#2563eb;color:#ffffff;font-size:.62rem;margin-left:4px">SPEAKING</span>
           </div>
           <div class="tile-status">
-            <span class="tile-status-icon" id="local-cam-status">📹 ON</span>
+            <span class="tile-status-icon" id="local-cam-status">CAM ACTIVE</span>
           </div>
         </div>
 
@@ -132,7 +136,7 @@
             </div>
           </div>
           <div class="tile-tag">
-            <span id="attender1-mic-icon">🎙️</span>
+            <span id="attender1-mic-icon" style="font-size:0.65rem;font-weight:800;background:#27272a;color:#ffffff;padding:1px 4px;border-radius:3px">MIC</span>
             <span>Sarah Chen</span>
             <span id="speaker-badge-attender1" class="badge" style="background:#2563eb;color:#ffffff;font-size:.62rem;margin-left:4px;display:none">SPEAKING</span>
           </div>
@@ -152,7 +156,7 @@
             </div>
           </div>
           <div class="tile-tag">
-            <span id="attender2-mic-icon">🎙️</span>
+            <span id="attender2-mic-icon" style="font-size:0.65rem;font-weight:800;background:#27272a;color:#ffffff;padding:1px 4px;border-radius:3px">MIC</span>
             <span>David Miller</span>
             <span id="speaker-badge-attender2" class="badge" style="background:#2563eb;color:#ffffff;font-size:.62rem;margin-left:4px;display:none">SPEAKING</span>
           </div>
@@ -176,13 +180,13 @@
         <!-- Stage Tabs Bar -->
         <div class="stage-tabs-bar">
           <button class="stage-tab active" id="stagetab-transcript" onclick="switchStageTab('transcript')">
-            📝 Interactive Transcript
+            Live Transcript
           </button>
           <button class="stage-tab" id="stagetab-simulator" onclick="switchStageTab('simulator')">
-            ⚡ Attender Simulator (<span id="simulator-lang-label">தமிழ்</span>)
+            Attender Simulator (<span id="simulator-lang-label">Tamil</span>)
           </button>
           <button class="stage-tab" id="stagetab-notes" onclick="switchStageTab('notes')">
-            ✍️ Quick Notes
+            Meeting Notes
           </button>
           <div style="flex:1"></div>
           <button class="stage-minimize-btn" id="stage-toggle-height-btn" onclick="toggleStagePanelSize()" title="Toggle subpanel height">
@@ -204,7 +208,7 @@
 
             <div class="transcript-search-group" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
               <div class="search-input-wrap">
-                <span class="search-icon">🔍</span>
+                <span class="search-icon" style="font-size:0.72rem;font-weight:700;color:var(--clr-text-muted)">FIND</span>
                 <input type="text" id="transcript-search-input" placeholder="Find in transcript…" oninput="filterTranscript(this.value)" />
               </div>
               <select id="transcript-speaker-filter" class="speaker-filter-select" onchange="filterTranscript()">
@@ -214,13 +218,13 @@
                 <option value="David Miller">David Miller</option>
               </select>
               <button class="btn btn-secondary btn-sm" onclick="exportActiveTranscript('transcript')" title="Export transcript as text file" style="padding:4px 8px;font-size:0.75rem;white-space:nowrap">
-                📥 Export .txt
+                Export .txt
               </button>
               <button class="btn btn-secondary btn-sm" onclick="exportActiveTranscript('markdown')" title="Export transcript as markdown file" style="padding:4px 8px;font-size:0.75rem;white-space:nowrap">
-                📝 Export .md
+                Export .md
               </button>
               <button class="btn btn-ghost btn-sm" onclick="copyFullTranscriptToClipboard()" title="Copy all transcript text to clipboard" style="padding:4px 8px;font-size:0.75rem;white-space:nowrap">
-                📋 Copy
+                Copy
               </button>
             </div>
           </div>
@@ -228,7 +232,7 @@
           <!-- Interactive transcript sentences feed -->
           <div class="stage-transcript-stream" id="stage-transcript-stream">
             <div class="empty-state" id="stage-transcript-empty" style="padding:20px 0">
-              <div class="empty-icon">🎙️</div>
+              <div class="empty-icon" style="font-size:0.75rem;font-weight:800;color:var(--clr-text-dim)">AUDIO INACTIVE</div>
               <h4 style="color:#ffffff">Meeting transcription is live</h4>
               <p style="font-size:.82rem">Speak into your microphone in English, Tamil, or Malayalam, or click a Simulator question.</p>
             </div>
@@ -239,9 +243,9 @@
         <div class="stage-tab-content" id="stagepanel-simulator" style="display:none">
           <div class="simulator-panel-inner">
             <div class="attender-lang-tabs">
-              <button class="attender-lang-pill active" id="sim-pill-ta" onclick="switchSimulatorLang('ta')">🇮🇳 தமிழ் (Tamil Questions)</button>
-              <button class="attender-lang-pill" id="sim-pill-en" onclick="switchSimulatorLang('en')">🇬🇧 English Questions</button>
-              <button class="attender-lang-pill" id="sim-pill-ml" onclick="switchSimulatorLang('ml')">🇮🇳 മലയാളം (Malayalam Questions)</button>
+              <button class="attender-lang-pill active" id="sim-pill-ta" onclick="switchSimulatorLang('ta')">Tamil Questions</button>
+              <button class="attender-lang-pill" id="sim-pill-en" onclick="switchSimulatorLang('en')">English (US)</button>
+              <button class="attender-lang-pill" id="sim-pill-ml" onclick="switchSimulatorLang('ml')">Malayalam Questions</button>
               <div style="flex:1"></div>
               <button class="btn btn-ghost btn-sm" onclick="promptCustomAttenderQuestion()">+ Custom Question</button>
             </div>
@@ -375,7 +379,7 @@
         </div>
         <div id="suggestions-feed" style="display:flex;flex-direction:column;gap:8px"></div>
         <div class="empty-state" id="qa-empty">
-          <div class="empty-icon">💡</div>
+          <div class="empty-icon" style="font-size:0.75rem;font-weight:800;color:var(--clr-text-dim)">NO QUESTIONS YET</div>
           <h4 style="color:#ffffff">No questions or suggestions yet</h4>
           <p style="font-size:.82rem">When meeting attenders speak or ask questions, Copilot provides instant <strong>Easy Answers</strong> and strategic response suggestions right here.</p>
           <div style="margin-top:8px">
@@ -389,7 +393,7 @@
       <!-- Tab 2: Live Insights -->
       <div class="sidebar-content" id="panel-insights" style="display:none">
         <div class="empty-state" id="insights-empty">
-          <div class="empty-icon">🧠</div>
+          <div class="empty-icon" style="font-size:0.75rem;font-weight:800;color:var(--clr-text-dim)">NO MEMORY RECORDS</div>
           <h4 style="color:#ffffff">Listening for insights…</h4>
           <p style="font-size:.82rem">Key points, facts, objections, risks, and commitments appear here in real-time.</p>
         </div>
@@ -410,7 +414,7 @@
         </div>
         <div id="decisions-list" style="display:flex;flex-direction:column;gap:8px;overflow-y:auto">
           <div class="empty-state" id="decisions-empty">
-            <div class="empty-icon">⚖️</div>
+            <div class="empty-icon" style="font-size:0.75rem;font-weight:800;color:var(--clr-text-dim)">NO DECISIONS RECORDED</div>
             <h4 style="color:#ffffff">No decisions recorded</h4>
             <p style="font-size:.82rem">Agreed consensus and ratified decisions appear here with verifiable evidence.</p>
           </div>
@@ -436,7 +440,7 @@
         </div>
         <div id="actions-list" style="display:flex;flex-direction:column;gap:8px;overflow-y:auto">
           <div class="empty-state" id="actions-empty">
-            <div class="empty-icon">✓</div>
+            <div class="empty-icon" style="font-size:0.75rem;font-weight:800;color:var(--clr-text-dim)">NO ACTION ITEMS</div>
             <h4 style="color:#ffffff">No action items yet</h4>
             <p style="font-size:.82rem">Add deliverables directly or generate from conversation analysis.</p>
           </div>
@@ -447,15 +451,15 @@
       <div class="sidebar-content" id="panel-transcript" style="display:none">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:6px;flex-wrap:wrap">
           <div style="display:flex;gap:4px">
-            <button class="btn btn-secondary btn-sm" onclick="exportActiveTranscript('transcript')" title="Export transcript as text" style="padding:4px 8px;font-size:0.75rem">📥 .txt</button>
-            <button class="btn btn-secondary btn-sm" onclick="exportActiveTranscript('markdown')" title="Export transcript as markdown" style="padding:4px 8px;font-size:0.75rem">📝 .md</button>
-            <button class="btn btn-ghost btn-sm" onclick="copyFullTranscriptToClipboard()" title="Copy all transcript text" style="padding:4px 8px;font-size:0.75rem">📋 Copy</button>
+            <button class="btn btn-secondary btn-sm" onclick="exportActiveTranscript('transcript')" title="Export transcript as text" style="padding:4px 8px;font-size:0.75rem">Export TXT</button>
+            <button class="btn btn-secondary btn-sm" onclick="exportActiveTranscript('markdown')" title="Export transcript as markdown" style="padding:4px 8px;font-size:0.75rem">Export MD</button>
+            <button class="btn btn-ghost btn-sm" onclick="copyFullTranscriptToClipboard()" title="Copy all transcript text" style="padding:4px 8px;font-size:0.75rem">Copy</button>
           </div>
-          <button class="btn btn-secondary btn-sm" onclick="openImportTranscriptModal()" style="padding:4px 8px;font-size:0.75rem">📥 Import</button>
+          <button class="btn btn-secondary btn-sm" onclick="openImportTranscriptModal()" style="padding:4px 8px;font-size:0.75rem">Import</button>
         </div>
         <div class="transcript-area" id="transcript-feed">
           <div class="empty-state" id="transcript-empty">
-            <div class="empty-icon">🎙️</div>
+            <div class="empty-icon" style="font-size:0.75rem;font-weight:800;color:var(--clr-text-dim)">AUDIO INACTIVE</div>
             <h4 style="color:#ffffff">Meeting transcript is live</h4>
             <p style="font-size:.82rem">Speak into your microphone or paste conversation notes below.</p>
           </div>
@@ -467,14 +471,14 @@
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
           <h4 style="font-size:.9rem;color:#ffffff;margin:0">Meeting Summary</h4>
           <div style="display:flex;gap:6px">
-            <button class="btn btn-secondary btn-sm" onclick="exportSummary('markdown')">💾 MD</button>
-            <button class="btn btn-secondary btn-sm" onclick="exportSummary('text')">📄 TXT</button>
-            <button class="btn btn-primary btn-sm" id="gen-summary-btn" onclick="generateSummary()">✦ Generate</button>
+            <button class="btn btn-secondary btn-sm" onclick="exportSummary('markdown')">Export MD</button>
+            <button class="btn btn-secondary btn-sm" onclick="exportSummary('text')">Export TXT</button>
+            <button class="btn btn-primary btn-sm" id="gen-summary-btn" onclick="generateSummary()">Generate Summary</button>
           </div>
         </div>
         <div id="summary-content">
           <div class="empty-state">
-            <div class="empty-icon">📋</div>
+            <div class="empty-icon" style="font-size:0.75rem;font-weight:800;color:var(--clr-text-dim)">NO SUMMARY GENERATED</div>
             <p style="font-size:.82rem">Click Generate to build structured decisions, takeaways, and a follow-up email draft.</p>
           </div>
         </div>
@@ -484,10 +488,10 @@
       <div class="copilot-chat-footer">
         <div class="copilot-input-wrapper">
           <input type="text" id="copilot-prompt-input" class="copilot-input" placeholder="Write a response or ask Copilot…" onkeydown="handleCopilotInputKey(event)" />
-          <button class="copilot-send-btn" id="copilot-send-btn" onclick="submitCopilotPrompt()" title="Ask Copilot">➤</button>
+          <button class="copilot-send-btn" id="copilot-send-btn" onclick="submitCopilotPrompt()" title="Ask Copilot">Send</button>
         </div>
         <div class="copilot-disclaimer">
-          ✦ Powered by AI Copilot • Multilingual (Tamil, English, Malayalam) • Real-time
+          Powered by AI Copilot • Multilingual (Tamil, English, Malayalam) • Real-time
         </div>
       </div>
 
@@ -531,9 +535,14 @@
           <span>Easy Answers</span>
         </button>
 
-        <button class="dock-btn" onclick="showParticipantsModal()">
+        <button class="dock-btn" onclick="switchSidebarTab('summary');generateSummary();" title="Summarize all transcripts into key points">
+          <span class="dock-icon neon-pad neon-pad-xs neon-pad-purple"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg></span>
+          <span>Summarize</span>
+        </button>
+
+        <button class="dock-btn" id="dock-attenders-btn" onclick="showParticipantsModal()">
           <span class="dock-icon neon-pad neon-pad-xs neon-pad-silver"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2m8-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg></span>
-          <span>Attenders (3)</span>
+          <span id="dock-attenders-label">Attenders (1)</span>
         </button>
 
         <button class="dock-btn" onclick="exportActiveTranscript('transcript')" title="Export active meeting transcript">
@@ -566,11 +575,21 @@
     import { api } from '/js/api.js';
     import { toast, showModal, setLoading, escapeHtml, timeAgo } from '/js/components/ui.js';
 
-    if (!localStorage.getItem('copilot_token')) window.location.href = '/';
-    window.logout = () => { localStorage.removeItem('copilot_token'); window.location.href = '/'; };
+    let userToken = localStorage.getItem('copilot_token');
+    let currentUserMeta = null;
+    try {
+      currentUserMeta = JSON.parse(localStorage.getItem('copilot_user') || 'null');
+    } catch (_) {}
+
+    window.logout = () => {
+      localStorage.removeItem('copilot_token');
+      localStorage.removeItem('copilot_user');
+      window.location.href = '/';
+    };
 
     const sessionId = window.location.pathname.split('/').pop();
     let currentSession = null;
+    let isMeetingHost = true;
     let allInsights = [];
     let allActions = [];
     let allDecisions = [];
@@ -578,6 +597,12 @@
     let allQA = [];
     let timerInterval = null;
     let secondsElapsed = 0;
+
+    // Real-Time Multi-User WebRTC & WebSocket State
+    let meetingWs = null;
+    let myClientId = 'user-' + Math.random().toString(36).substring(2, 9);
+    let peerConnections = {}; // client_id -> RTCPeerConnection
+    let connectedParticipants = [];
 
     // Real Media Stream State
     let localStream = null;
@@ -588,7 +613,7 @@
     let recognition = null;
     let isRecognizing = false;
     let currentMeetingLang = 'en-US'; // Default to English ('en-US', 'en-IN', 'ta-IN', 'ml-IN')
-    let currentActiveSpeaker = 'You (Host)';
+    let currentActiveSpeaker = currentUserMeta?.displayName || 'You (Host)';
     let interactiveTranscriptsEnabled = true;
 
     const langNames = {
@@ -600,8 +625,11 @@
 
     // ── Init Meeting ───────────────────────────────────────────────────
     async function init() {
+      // 1. Verify access or prompt guest join
+      const authorized = await checkAccessOrPromptJoin();
+      if (!authorized) return;
+
       try {
-        currentSession = await api.sessions.get(sessionId);
         renderMeetingHeader();
         await Promise.all([loadTranscript(), loadInsights(), loadActions(), loadDecisions()]);
         loadSmartSuggestions();
@@ -613,16 +641,112 @@
         startMeetingTimer();
 
         // Attempt to start local camera / mic for Zoom-style video call
-        initMediaDevices();
+        await initMediaDevices();
 
-        // Start Speech Recognition in selected language (Tamil by default)
+        // Connect real-time multi-user WebSocket & WebRTC hub
+        initMeetingWebSocket();
+
+        // Start Speech Recognition
         initSpeechRecognition();
 
       } catch (err) {
         document.getElementById('loading-overlay').innerHTML =
-          `<div class="empty-state"><div class="empty-icon">⚠️</div><h3>${escapeHtml(err.message)}</h3><a href="/dashboard" class="btn btn-secondary">← Back to Dashboard</a></div>`;
+          `<div class="empty-state"><div class="empty-icon" style="font-size:0.75rem;font-weight:800;color:var(--clr-text-dim)">ALERT</div><h3>${escapeHtml(err.message)}</h3><a href="/dashboard" class="btn btn-secondary">← Back to Dashboard</a></div>`;
       }
     }
+
+    async function checkAccessOrPromptJoin() {
+      // If user has token, verify access to session
+      if (userToken) {
+        try {
+          currentSession = await api.sessions.get(sessionId);
+          isMeetingHost = true;
+          return true;
+        } catch (err) {
+          // If not owner, try to auto-join as attendee
+          try {
+            const joinRes = await api.meetings.join(sessionId, currentUserMeta?.displayName || 'Attendee');
+            if (joinRes && joinRes.access_token) {
+              localStorage.setItem('copilot_token', joinRes.access_token);
+              userToken = joinRes.access_token;
+              currentSession = { id: joinRes.session_id, title: joinRes.title, objective: joinRes.objective, mode: joinRes.mode };
+              isMeetingHost = joinRes.role === 'host';
+              currentActiveSpeaker = joinRes.display_name;
+              return true;
+            }
+          } catch (_) {}
+        }
+      }
+
+      // Check public info of session for guest join
+      try {
+        const publicInfo = await fetch(`/api/v1/meetings/${sessionId}/public-info`).then(r => r.json());
+        if (publicInfo && publicInfo.id) {
+          promptGuestJoin(publicInfo);
+          return false;
+        }
+      } catch (err) {
+        console.error('Could not get meeting public info:', err);
+      }
+
+      document.getElementById('loading-overlay').innerHTML =
+        `<div class="empty-state"><div class="empty-icon" style="font-size:0.75rem;font-weight:800;color:var(--clr-text-dim)">ALERT</div><h3>Meeting Room Not Found</h3><p style="color:var(--clr-text-muted);margin:8px 0 16px">This meeting room link is invalid or has ended.</p><a href="/dashboard" class="btn btn-secondary">← Back to Dashboard</a></div>`;
+      return false;
+    }
+
+    function promptGuestJoin(info) {
+      document.getElementById('loading-overlay').style.display = 'none';
+      const defaultName = currentUserMeta?.displayName || '';
+      showModal(`
+        <div class="modal-header">
+          <h3>Join Meeting: ${escapeHtml(info.title)}</h3>
+        </div>
+        <div class="modal-body" style="gap:16px">
+          <div style="background:#14151b;padding:14px;border-radius:8px;border:1px solid rgba(255,255,255,0.12)">
+            <div style="font-size:0.75rem;color:var(--clr-text-muted)">ORGANIZER: <strong style="color:#ffffff">${escapeHtml(info.owner_name || 'Host')}</strong></div>
+            ${info.objective ? `<div style="font-size:0.8rem;color:#93c5fd;margin-top:6px">OBJECTIVE: ${escapeHtml(info.objective)}</div>` : ''}
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="guest-join-input">Enter your name to join the call <span class="required">*</span></label>
+            <input type="text" id="guest-join-input" class="form-input" placeholder="e.g. Elena Rostova / Alex Rivera" value="${escapeHtml(defaultName)}" autofocus />
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end">
+            <a href="/dashboard" class="btn btn-secondary">Cancel</a>
+            <button class="btn btn-primary" id="btn-submit-guest-join" onclick="executeGuestJoin(this)" style="background:#ffffff;color:#000000;font-weight:800">
+              Enter Meeting Room →
+            </button>
+          </div>
+        </div>
+      `);
+    }
+
+    window.executeGuestJoin = async (btn) => {
+      const nameInput = document.getElementById('guest-join-input');
+      const name = (nameInput?.value || '').trim() || 'Attendee';
+      setLoading(btn, true, 'Connecting to call…');
+      try {
+        const res = await api.meetings.join(sessionId, name);
+        if (res && res.access_token) {
+          localStorage.setItem('copilot_token', res.access_token);
+          localStorage.setItem('copilot_user', JSON.stringify({
+            displayName: res.display_name,
+            role: res.role,
+            sessionId: res.session_id
+          }));
+          userToken = res.access_token;
+          currentUserMeta = { displayName: res.display_name, role: res.role };
+          currentActiveSpeaker = res.display_name;
+          currentSession = { id: res.session_id, title: res.title, objective: res.objective, mode: res.mode };
+          isMeetingHost = res.role === 'host';
+        }
+        btn.closest('.modal-overlay')?.remove();
+        document.getElementById('loading-overlay').style.display = 'flex';
+        await init();
+      } catch (err) {
+        toast(`Failed to join: ${err.message}`, 'error');
+        setLoading(btn, false, 'Enter Meeting Room →');
+      }
+    };
 
     function renderMeetingHeader() {
       document.title = `${currentSession.title} — Copilot Meeting`;
@@ -653,6 +777,264 @@
       });
     };
 
+    // ── Real-Time Multi-User WebRTC & WebSocket Hub ────────────────────
+    function initMeetingWebSocket() {
+      const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const myName = currentActiveSpeaker || currentUserMeta?.displayName || 'Participant';
+      const wsHost = (typeof window !== 'undefined' && window.__COPILOT_WS_HOST__) ? window.__COPILOT_WS_HOST__ : window.location.host;
+      const wsUrl = `${proto}//${wsHost}/api/v1/meetings/ws/${sessionId}?token=${encodeURIComponent(userToken || '')}&name=${encodeURIComponent(myName)}&role=${encodeURIComponent(myRole)}`;
+
+      try {
+        meetingWs = new WebSocket(wsUrl);
+
+        meetingWs.onopen = () => {
+          console.log('Connected to live meeting WebSocket hub');
+        };
+
+        meetingWs.onmessage = async (evt) => {
+          try {
+            const data = JSON.parse(evt.data);
+            handleWebSocketMessage(data);
+          } catch (e) {
+            console.warn('WS parse error:', e);
+          }
+        };
+
+        meetingWs.onclose = () => {
+          console.warn('WebSocket closed, attempting reconnect in 3s');
+          setTimeout(() => {
+            if (!meetingWs || meetingWs.readyState !== WebSocket.OPEN) {
+              initMeetingWebSocket();
+            }
+          }, 3000);
+        };
+      } catch (err) {
+        console.warn('WebSocket init failed:', err);
+      }
+    }
+
+    async function handleWebSocketMessage(data) {
+      if (data.type === 'room_state') {
+        connectedParticipants = data.participants || [];
+        updateParticipantGrid(connectedParticipants);
+        updateAttendersBadge(connectedParticipants.length);
+
+        if (data.event === 'user_joined' && data.joined_client) {
+          toast(`${data.joined_client.name} joined the meeting.`, 'success', 3000);
+          if (data.joined_client.client_id !== myClientId) {
+            initiatePeerCall(data.joined_client.client_id, data.joined_client.name);
+          }
+        } else if (data.event === 'user_left' && data.left_client) {
+          toast(`${data.left_client.name} left the meeting.`, 'info', 2500);
+          removePeerTile(data.left_client.client_id);
+        }
+      } else if (data.type === 'signal') {
+        handlePeerSignal(data.sender_client_id, data.sender_name, data.signal_data);
+      } else if (data.type === 'transcript_utterance') {
+        if (data.sender_client_id !== myClientId) {
+          showLiveCaption(data.speaker, data.text);
+          animateTileSpeaking(data.speaker);
+          if (data.is_final) {
+            addTranscriptSegmentToUI({
+              id: 'ws-' + Date.now(),
+              speaker_label: data.speaker,
+              text: data.text,
+              created_at: data.timestamp || new Date().toISOString()
+            });
+            await loadInsights();
+          }
+        }
+      } else if (data.type === 'speaking_indicator') {
+        highlightPeerSpeaking(data.speaker, data.is_speaking);
+      } else if (data.type === 'easy_answer_ready') {
+        addEasyAnswerCard({
+          question: data.question,
+          speaker_label: data.speaker,
+          easy_answer: data.easy_answer,
+          talking_points: data.talking_points || [],
+          objective_alignment: 'supports_goal',
+          confidence_label: data.confidence_label || 'high'
+        });
+        switchSidebarTab('easy-answers');
+        toast(`Easy Answer ready for ${data.speaker}'s question!`, 'success');
+      } else if (data.type === 'summary_ready') {
+        if (data.summary) {
+          renderSummary(data.summary);
+          toast('Key Summary Points updated!', 'success');
+        }
+      }
+    }
+
+    function updateAttendersBadge(count) {
+      const displayCount = Math.max(1, count || connectedParticipants.length);
+      const btnLabel = document.getElementById('dock-attenders-label');
+      if (btnLabel) btnLabel.textContent = `Attenders (${displayCount})`;
+    }
+
+    function updateParticipantGrid(participants) {
+      const grid = document.getElementById('video-grid');
+      if (!grid) return;
+
+      const localLabel = document.getElementById('local-tile-label');
+      if (localLabel) localLabel.textContent = `${currentActiveSpeaker} (You)`;
+      const localAvatarName = document.getElementById('local-name-label');
+      if (localAvatarName) localAvatarName.textContent = `${currentActiveSpeaker} (You)`;
+
+      // Dynamic peer tiles for other participants
+      const otherPeers = participants.filter(p => p.client_id !== myClientId && p.name !== currentActiveSpeaker);
+
+      otherPeers.forEach(peer => {
+        let tile = document.getElementById(`tile-peer-${peer.client_id}`);
+        if (!tile) {
+          tile = document.createElement('div');
+          tile.className = 'participant-tile';
+          tile.id = `tile-peer-${peer.client_id}`;
+          tile.onclick = () => setActiveSpeaker(peer.name);
+          tile.title = `Click to speak as ${peer.name}`;
+
+          const initials = (peer.name || 'P').split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase() || 'PT';
+          tile.innerHTML = `
+            <video id="video-peer-${peer.client_id}" class="participant-video" autoplay playsinline style="display:none"></video>
+            <div class="participant-avatar-view" id="avatar-peer-${peer.client_id}">
+              <div class="avatar-circle" style="background:#2563eb;color:#fff">${initials}</div>
+              <div style="font-size:.85rem;font-weight:700;color:#ffffff">${escapeHtml(peer.name)}</div>
+              <div style="font-size:.72rem;color:var(--clr-text-dim)">${escapeHtml(peer.role.toUpperCase())}</div>
+              <div class="audio-wave"><span></span><span></span><span></span><span></span></div>
+            </div>
+            <div class="tile-tag">
+              <span>MIC:</span>
+              <span>${escapeHtml(peer.name)}</span>
+              <span id="badge-peer-${peer.client_id}" class="badge" style="background:#2563eb;color:#ffffff;font-size:.62rem;margin-left:4px;display:none">SPEAKING</span>
+            </div>
+            <div class="tile-status"><span class="tile-status-icon">${escapeHtml(peer.role.toUpperCase())}</span></div>
+          `;
+          grid.appendChild(tile);
+
+          // Add to speaker select
+          const sel = document.getElementById('meeting-speaker-select');
+          if (sel && !Array.from(sel.options).some(o => o.value === peer.name)) {
+            const opt = document.createElement('option');
+            opt.value = peer.name;
+            opt.textContent = `${peer.name} (${peer.role})`;
+            sel.appendChild(opt);
+          }
+        }
+      });
+    }
+
+    function removePeerTile(clientId) {
+      const tile = document.getElementById(`tile-peer-${clientId}`);
+      if (tile) tile.remove();
+      if (peerConnections[clientId]) {
+        peerConnections[clientId].close();
+        delete peerConnections[clientId];
+      }
+    }
+
+    function sendWsSignal(targetClientId, signalData) {
+      if (meetingWs && meetingWs.readyState === WebSocket.OPEN) {
+        meetingWs.send(JSON.stringify({
+          type: 'signal',
+          target_client_id: targetClientId,
+          signal_data: signalData
+        }));
+      }
+    }
+
+    function createPeerConnection(peerClientId, peerName) {
+      if (peerConnections[peerClientId]) return peerConnections[peerClientId];
+      const pc = new RTCPeerConnection({
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+      });
+
+      pc.onicecandidate = (e) => {
+        if (e.candidate) {
+          sendWsSignal(peerClientId, { candidate: e.candidate });
+        }
+      };
+
+      pc.ontrack = (e) => {
+        const stream = e.streams[0];
+        const videoEl = document.getElementById(`video-peer-${peerClientId}`);
+        const avatarEl = document.getElementById(`avatar-peer-${peerClientId}`);
+        if (videoEl) {
+          videoEl.srcObject = stream;
+          videoEl.style.display = 'block';
+        }
+        if (avatarEl) avatarEl.style.display = 'none';
+      };
+
+      if (localStream) {
+        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+      }
+
+      peerConnections[peerClientId] = pc;
+      return pc;
+    }
+
+    async function initiatePeerCall(peerClientId, peerName) {
+      try {
+        const pc = createPeerConnection(peerClientId, peerName);
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        sendWsSignal(peerClientId, { type: 'offer', sdp: offer.sdp });
+      } catch (err) {
+        console.warn('WebRTC offer creation error:', err);
+      }
+    }
+
+    async function handlePeerSignal(senderClientId, senderName, signalData) {
+      try {
+        if (signalData.type === 'offer') {
+          let pc = peerConnections[senderClientId] || createPeerConnection(senderClientId, senderName);
+          await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: signalData.sdp }));
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          sendWsSignal(senderClientId, { type: 'answer', sdp: answer.sdp });
+        } else if (signalData.type === 'answer') {
+          const pc = peerConnections[senderClientId];
+          if (pc) {
+            await pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: signalData.sdp }));
+          }
+        } else if (signalData.candidate) {
+          const pc = peerConnections[senderClientId];
+          if (pc) {
+            await pc.addIceCandidate(new RTCIceCandidate(signalData.candidate));
+          }
+        }
+      } catch (err) {
+        console.warn('WebRTC signal handling failed:', err);
+      }
+    }
+
+    function broadcastSpokenUtterance(speaker, text, isFinal) {
+      if (meetingWs && meetingWs.readyState === WebSocket.OPEN) {
+        try {
+          meetingWs.send(JSON.stringify({
+            type: 'transcript_utterance',
+            speaker: speaker,
+            text: text,
+            is_final: isFinal
+          }));
+        } catch (_) {}
+      }
+    }
+
+    function highlightPeerSpeaking(speakerName, isSpeaking) {
+      const match = connectedParticipants.find(p => p.name === speakerName);
+      if (match) {
+        const tile = document.getElementById(`tile-peer-${match.client_id}`);
+        const badge = document.getElementById(`badge-peer-${match.client_id}`);
+        if (tile) {
+          tile.classList.toggle('is-speaking', isSpeaking);
+          if (badge) badge.style.display = isSpeaking ? 'inline-block' : 'none';
+        }
+      }
+    }
+
     // ── Media Devices (Webcam & Microphone) ────────────────────────────
     async function initMediaDevices() {
       try {
@@ -682,15 +1064,15 @@
 
       if (isMicMuted) {
         btn.classList.add('danger');
-        icon.textContent = '🔇';
+        icon.textContent = 'MUTED';
         label.textContent = 'Unmute';
-        tileIcon.textContent = '🔇';
+        tileIcon.textContent = 'MUTED';
         toast('Microphone muted', 'info');
       } else {
         btn.classList.remove('danger');
-        icon.textContent = '🎙️';
+        icon.textContent = 'MIC ON';
         label.textContent = 'Mute';
-        tileIcon.textContent = '🎙️';
+        tileIcon.textContent = 'MIC';
         toast('Microphone active', 'success');
       }
     };
@@ -712,9 +1094,9 @@
         videoEl.style.display = 'none';
         avatarEl.style.display = 'flex';
         btn.classList.add('danger');
-        icon.textContent = '🚫';
+        icon.textContent = 'CAM OFF';
         label.textContent = 'Start Video';
-        statusIcon.textContent = '📹 OFF';
+        statusIcon.textContent = 'CAM OFF';
         toast('Camera disabled', 'info');
       } else {
         if (localStream && localStream.getVideoTracks().length) {
@@ -722,9 +1104,9 @@
           avatarEl.style.display = 'none';
         }
         btn.classList.remove('danger');
-        icon.textContent = '📹';
+        icon.textContent = 'CAM ON';
         label.textContent = 'Stop Video';
-        statusIcon.textContent = '📹 ON';
+        statusIcon.textContent = 'CAM ACTIVE';
         toast('Camera enabled', 'success');
       }
     };
@@ -826,7 +1208,7 @@
         }
       }
 
-      toast(`🌐 Meeting language set to ${label}. Microphone transcribing in ${label}!`, 'info', 4000);
+      toast(`Meeting language set to ${label}. Microphone transcribing in ${label}!`, 'info', 4000);
     };
 
     window.switchSimulatorLang = (code, syncSelect = true) => {
@@ -972,7 +1354,7 @@
         if (dynTile) dynTile.classList.add('active-speaker-tile');
       }
 
-      toast(`🎙️ Active Speaker set to: ${speaker}`, 'info', 2000);
+      toast(`Active Speaker set to: ${speaker}`, 'info', 2000);
     };
 
     window.promptAddCustomSpeaker = () => {
@@ -1023,7 +1405,7 @@
               <div class="audio-wave"><span></span><span></span><span></span><span></span></div>
             </div>
             <div class="tile-tag">
-              <span>🎙️</span><span>${escapeHtml(cleanName)}</span>
+              <span>MIC:</span><span>${escapeHtml(cleanName)}</span>
             </div>
             <div class="tile-status"><span class="tile-status-icon">ATTENDER</span></div>
           `;
@@ -1112,11 +1494,13 @@
 
         if (interimText) {
           showLiveCaption(activeSpk, displayText || interimText);
+          broadcastSpokenUtterance(activeSpk, displayText || interimText, false);
         }
 
         if (finalText.trim()) {
           const recordedText = displayText || finalText.trim();
           showLiveCaption(activeSpk, recordedText);
+          broadcastSpokenUtterance(activeSpk, recordedText, true);
           handleSpokenTranscript(activeSpk, recordedText);
         }
       };
@@ -1128,7 +1512,7 @@
           document.getElementById('stt-status-text').textContent = 'MIC PERMISSION BLOCKED';
           document.getElementById('stt-label').textContent = 'Transcribe: OFF';
           document.getElementById('dock-stt-btn')?.classList.remove('active');
-          toast('⚠️ Microphone permission blocked. Allow mic access in your browser address bar.', 'error', 6000);
+          toast('Microphone permission blocked. Allow mic access in your browser address bar.', 'error', 6000);
         } else if (e.error === 'network') {
           console.warn('Speech recognition network blip, reconnecting…');
         }
@@ -1304,7 +1688,7 @@
       }
 
       navigator.clipboard.writeText(text.trim()).then(() => {
-        toast(`📋 Copied all transcript lines to clipboard!`, 'success', 3000);
+        toast(`Copied all transcript lines to clipboard.`, 'success', 3000);
       }).catch(() => {
         toast('Could not copy to clipboard', 'error');
       });
@@ -1373,9 +1757,26 @@
     }
 
     function animateTileSpeaking(speaker) {
-      const tileId = speaker.includes('Sarah') ? 'tile-attender-1' :
-                     speaker.includes('David') ? 'tile-attender-2' : 'tile-local';
-      const el = document.getElementById(tileId);
+      if (!speaker) return;
+      let el = null;
+      // 1. Check dynamic connected participants
+      const peer = (connectedParticipants || []).find(p => p.name && p.name.toLowerCase() === speaker.toLowerCase());
+      if (peer) {
+        el = document.getElementById(`tile-peer-${peer.client_id}`);
+      }
+      // 2. Fallback to default or custom tiles
+      if (!el) {
+        if (speaker.includes('Sarah')) {
+          el = document.getElementById('tile-attender-1');
+        } else if (speaker.includes('David')) {
+          el = document.getElementById('tile-attender-2');
+        } else if (speaker.toLowerCase().includes('host') || speaker.toLowerCase().includes('you')) {
+          el = document.getElementById('tile-local');
+        } else {
+          const safeId = speaker.replace(/[^a-zA-Z0-9]/g, '_');
+          el = document.getElementById(`tile-custom-${safeId}`) || document.getElementById('tile-local');
+        }
+      }
       if (el) {
         el.classList.add('is-speaking');
         setTimeout(() => el.classList.remove('is-speaking'), 3500);
@@ -1387,6 +1788,7 @@
       showLiveCaption(speaker, question);
       animateTileSpeaking(speaker);
       toast(`${speaker} is speaking…`, 'info', 2000);
+      broadcastSpokenUtterance(speaker, question, true);
       await handleSpokenTranscript(speaker, question);
     };
 
@@ -1397,7 +1799,7 @@
       }
     };
 
-    // ── Easy Answer Card Rendering (With Feedback 👍 👎) ─────────────
+    // ── Easy Answer Card Rendering (With Feedback) ─────────────
     function addEasyAnswerCard(item) {
       document.getElementById('qa-empty').style.display = 'none';
       allQA.push(item);
@@ -1424,7 +1826,7 @@
 
         <div class="qa-answer-box">
           <div class="qa-answer-label">
-            <span>💡 EASY ANSWER (SUGGESTED RESPONSE)</span>
+            <span>AI ANSWER (SUGGESTED RESPONSE)</span>
             <span style="font-family:var(--font-mono);font-size:.68rem;color:#ffffff">● ${item.confidence_label || 'HIGH'}</span>
           </div>
           <div class="qa-answer-text">${safeAnswer}</div>
@@ -1433,17 +1835,17 @@
 
         <div class="qa-actions">
           <button class="btn btn-primary btn-sm" onclick="copyText('${safeAnswerAttr}')" title="Copy answer to clipboard">
-            📋 Copy Answer
+            Copy Answer
           </button>
           <button class="btn btn-secondary btn-sm" onclick="speakText('${safeAnswerAttr}')" title="Read answer out loud">
-            🗣️ Speak Answer
+            Speak Answer
           </button>
           <button class="btn btn-ghost btn-sm" onclick="addActionFromQA('${safeAnswerAttr}')" style="margin-left:4px">
             → Action
           </button>
           <div class="qa-feedback-group">
-            <button class="feedback-btn" onclick="giveQAFeedback(this, 'positive')" title="Helpful response">👍</button>
-            <button class="feedback-btn" onclick="giveQAFeedback(this, 'negative')" title="Not helpful">👎</button>
+            <button class="feedback-btn" onclick="giveQAFeedback(this, 'positive')" title="Helpful response" style="font-size:0.7rem;font-weight:700;padding:2px 8px">HELPFUL</button>
+            <button class="feedback-btn" onclick="giveQAFeedback(this, 'negative')" title="Not helpful" style="font-size:0.7rem;font-weight:700;padding:2px 8px">FLAG</button>
           </div>
         </div>
       `;
@@ -1455,7 +1857,7 @@
       const parent = btn.closest('.qa-feedback-group');
       parent.querySelectorAll('.feedback-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      toast(`Feedback recorded: ${type === 'positive' ? 'Helpful 👍' : 'Needs improvement 👎'}`, 'success', 2500);
+      toast(`Feedback recorded: ${type === 'positive' ? 'Helpful' : 'Needs improvement'}`, 'success', 2500);
     };
 
     window.copyText = (text) => {
@@ -1532,7 +1934,7 @@
       if (!promptText) return;
 
       input.value = '';
-      toast('✦ Copilot analyzing question…', 'info', 2000);
+      toast('Copilot analyzing question…', 'info', 2000);
 
       try {
         const res = await api.qa.answer(sessionId, promptText, 'You (Host)');
@@ -1545,7 +1947,7 @@
           confidence_label: res.confidence_label || 'high',
         });
         switchSidebarTab('easy-answers');
-        toast('✦ Copilot Easy Answer generated!', 'success', 3000);
+        toast('Copilot Easy Answer generated.', 'success', 3000);
       } catch (err) {
         console.error('Copilot prompt failed:', err);
         // Fallback to spoken transcript submission
@@ -1655,9 +2057,9 @@
           ${alignIcon ? `<span style="margin-left:auto">${alignIcon}</span>` : ''}
         </div>
         <div class="insight-actions">
-          <button class="btn btn-ghost btn-sm" onclick="rateInsight('${ins.id}','useful',this)">👍 Useful</button>
-          <button class="btn btn-ghost btn-sm" onclick="rateInsight('${ins.id}','not_useful',this)">👎</button>
-          <button class="btn btn-ghost btn-sm" onclick="editInsight('${ins.id}',this)">✏️</button>
+          <button class="btn btn-ghost btn-sm" onclick="rateInsight('${ins.id}','useful',this)">Useful</button>
+          <button class="btn btn-ghost btn-sm" onclick="rateInsight('${ins.id}','not_useful',this)">Needs Review</button>
+          <button class="btn btn-ghost btn-sm" onclick="editInsight('${ins.id}',this)">Edit</button>
         </div>`;
       return card;
     }
@@ -1724,17 +2126,17 @@
 
         card.innerHTML = `
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <span class="badge" style="font-size:0.68rem;background:#27272a;color:#ffffff;border:1px solid var(--clr-border-2);text-transform:uppercase">✦ ${escapeHtml(sug.suggestion_type || 'TACTICAL SUGGESTION')}</span>
+            <span class="badge" style="font-size:0.68rem;background:#27272a;color:#ffffff;border:1px solid var(--clr-border-2);text-transform:uppercase">${escapeHtml(sug.suggestion_type || 'TACTICAL SUGGESTION')}</span>
             <span style="font-size:0.7rem;color:var(--clr-text-dim)">${escapeHtml(sug.topic || 'Strategy')}</span>
           </div>
           <div class="sug-text" style="font-size:0.85rem;color:#ffffff;line-height:1.45">${safeText}</div>
           ${sug.rationale ? `<div style="font-size:0.72rem;color:var(--clr-text-muted);font-style:italic">Rationale: ${escapeHtml(sug.rationale)}</div>` : ''}
           <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">
-            <button class="btn btn-primary btn-xs" onclick="copyText('${safeAttr}')" title="Copy to clipboard">📋 Copy</button>
-            <button class="btn btn-secondary btn-xs" onclick="speakText('${safeAttr}')" title="Speak out loud">🗣️ Speak</button>
-            <button class="btn btn-ghost btn-xs" onclick="promptEditSuggestion('${sug.id}')" title="Edit suggestion">✏️ Edit</button>
+            <button class="btn btn-primary btn-xs" onclick="copyText('${safeAttr}')" title="Copy to clipboard">Copy</button>
+            <button class="btn btn-secondary btn-xs" onclick="speakText('${safeAttr}')" title="Speak out loud">Speak</button>
+            <button class="btn btn-ghost btn-xs" onclick="promptEditSuggestion('${sug.id}')" title="Edit suggestion">Edit</button>
             <button class="btn btn-ghost btn-xs" onclick="regenerateSuggestion('${sug.id}')" title="Regenerate alternative">↻ Regenerate</button>
-            <button class="btn btn-ghost btn-xs" onclick="dismissSuggestion('${sug.id}')" title="Dismiss" style="margin-left:auto;color:var(--clr-text-dim)">✕</button>
+            <button class="btn btn-ghost btn-xs" onclick="dismissSuggestion('${sug.id}')" title="Dismiss" style="margin-left:auto;color:var(--clr-text-dim)">&times;</button>
           </div>
         `;
         feed.appendChild(card);
@@ -1834,8 +2236,8 @@
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
             <span class="badge ${statusBadgeClass}" style="font-size:0.68rem;text-transform:uppercase;padding:2px 6px">${dec.status.replace(/_/g, ' ')}</span>
             <div style="display:flex;gap:4px">
-              <button class="btn btn-ghost btn-xs" onclick="promptEditDecision('${dec.id}')" title="Edit decision">✏️</button>
-              <button class="btn btn-ghost btn-xs" onclick="deleteDecision('${dec.id}')" title="Delete decision" style="color:var(--clr-danger)">🗑️</button>
+              <button class="btn btn-ghost btn-xs" onclick="promptEditDecision('${dec.id}')" title="Edit decision">Edit</button>
+              <button class="btn btn-ghost btn-xs" onclick="deleteDecision('${dec.id}')" title="Delete decision" style="color:var(--clr-danger)">Delete</button>
             </div>
           </div>
           <div class="decision-text" style="font-weight:600;font-size:0.83rem;color:#ffffff;line-height:1.35">${escapeHtml(dec.text)}</div>
@@ -1869,8 +2271,8 @@
     window.promptAddDecisionModal = () => {
       showModal(`
         <div class="modal-header">
-          <h3>⚖️ Record Meeting Decision</h3>
-          <button class="btn btn-ghost btn-icon" onclick="this.closest('.modal-overlay').remove()">✕</button>
+          <h3>Record Meeting Decision</h3>
+          <button class="btn btn-ghost btn-icon" onclick="this.closest('.modal-overlay').remove()">&times;</button>
         </div>
         <div class="modal-body" style="gap:12px">
           <div>
@@ -1996,8 +2398,8 @@
             <div class="action-content" style="flex:1">
               <div class="action-desc ${isDone ? 'done' : ''}" style="font-size:0.85rem;color:#ffffff;line-height:1.4">${escapeHtml(act.description)}</div>
               <div class="action-meta" style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap">
-                <span style="font-size:0.72rem;color:var(--clr-text-dim)">👤 ${escapeHtml(act.owner || 'Not specified')}</span>
-                <span style="font-size:0.72rem;color:var(--clr-text-dim)">📅 ${escapeHtml(act.due_date || 'Not specified')}</span>
+                <span style="font-size:0.72rem;color:var(--clr-text-dim)">Assignee: ${escapeHtml(act.owner || 'Not specified')}</span>
+                <span style="font-size:0.72rem;color:var(--clr-text-dim)">Due: ${escapeHtml(act.due_date || 'Not specified')}</span>
                 <span class="badge priority-pill ${priority}" style="font-size:0.68rem;text-transform:uppercase">${priority}</span>
                 <select class="form-select" style="font-size:0.68rem;padding:1px 4px;width:auto;margin-left:auto" onchange="updateActionStatus('${act.id}', this.value)">
                   <option value="pending" ${act.status === 'pending' ? 'selected' : ''}>Pending</option>
@@ -2005,8 +2407,8 @@
                   <option value="completed" ${isDone ? 'selected' : ''}>Completed</option>
                   <option value="cancelled" ${act.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
                 </select>
-                <button class="btn btn-ghost btn-xs" onclick="promptEditAction('${act.id}')" title="Edit task">✏️</button>
-                <button class="btn btn-ghost btn-xs" onclick="deleteAction('${act.id}')" title="Delete task" style="color:var(--clr-danger)">🗑️</button>
+                <button class="btn btn-ghost btn-xs" onclick="promptEditAction('${act.id}')" title="Edit task">Edit</button>
+                <button class="btn btn-ghost btn-xs" onclick="deleteAction('${act.id}')" title="Delete task" style="color:var(--clr-danger)">Delete</button>
               </div>
             </div>
           </div>
@@ -2050,8 +2452,8 @@
     window.promptDetailedAddAction = () => {
       showModal(`
         <div class="modal-header">
-          <h3>✓ Add Action Deliverable</h3>
-          <button class="btn btn-ghost btn-icon" onclick="this.closest('.modal-overlay').remove()">✕</button>
+          <h3>Add Action Deliverable</h3>
+          <button class="btn btn-ghost btn-icon" onclick="this.closest('.modal-overlay').remove()">&times;</button>
         </div>
         <div class="modal-body" style="gap:12px">
           <div>
@@ -2132,7 +2534,7 @@
       showModal(`
         <div class="modal-header">
           <h3>Edit Action Deliverable</h3>
-          <button class="btn btn-ghost btn-icon" onclick="this.closest('.modal-overlay').remove()">✕</button>
+          <button class="btn btn-ghost btn-icon" onclick="this.closest('.modal-overlay').remove()">&times;</button>
         </div>
         <div class="modal-body" style="gap:12px">
           <div>
@@ -2231,8 +2633,8 @@
       selectedImportFile = null;
       showModal(`
         <div class="modal-header">
-          <h3>📥 Import Meeting Transcript</h3>
-          <button class="btn btn-ghost btn-icon" onclick="this.closest('.modal-overlay').remove()">✕</button>
+          <h3>Import Meeting Transcript</h3>
+          <button class="btn btn-ghost btn-icon" onclick="this.closest('.modal-overlay').remove()">&times;</button>
         </div>
         <div class="modal-body" style="gap:16px">
           <div style="display:flex;gap:8px;border-bottom:1px solid var(--clr-border);padding-bottom:10px">
@@ -2250,7 +2652,7 @@
           <div id="import-modal-pane-upload" style="display:none">
             <label class="form-label">Upload File (.txt, .pdf under 10MB)</label>
             <div style="border:2px dashed var(--clr-border);border-radius:6px;padding:24px;text-align:center;background:#141417;cursor:pointer" onclick="document.getElementById('import-file-input').click()">
-              <div style="font-size:2rem;margin-bottom:8px">📄</div>
+              <div style="font-size:0.85rem;font-weight:700;color:var(--clr-text-muted);margin-bottom:8px">TRANSCRIPT DOCUMENT (.TXT / .MD)</div>
               <div style="font-weight:600;color:#ffffff;margin-bottom:4px" id="import-file-name-label">Click to select file or drag & drop</div>
               <div style="font-size:0.75rem;color:var(--clr-text-dim)">Supported: Plain text (.txt), PDF document (.pdf) up to 10MB</div>
               <input type="file" id="import-file-input" accept=".txt,.pdf,text/plain,application/pdf" style="display:none" onchange="handleImportFileSelected(event)" />
@@ -2364,22 +2766,52 @@
       const btn = document.getElementById('gen-summary-btn');
       setLoading(btn, true, 'Summarising…');
       try {
-        const s = await api.summary.generate(sessionId);
+        let s;
+        try {
+          s = await api.meetings.summarize(sessionId);
+        } catch (_) {
+          s = await api.summary.generate(sessionId);
+        }
         renderSummary(s);
-        toast('Summary generated', 'success');
+        toast('Key Summary Points generated!', 'success');
       } catch (err) {
         toast(`Error: ${err.message}`, 'error');
       } finally {
-        setLoading(btn, false, '✦ Generate');
+        setLoading(btn, false, 'Generate Summary');
       }
     };
 
     function renderSummary(s) {
       const container = document.getElementById('summary-content');
+      const importantPointsList = s.important_points || s.key_points || [];
+      const pointsHtml = importantPointsList.length > 0
+        ? `<ul style="margin:8px 0;padding-left:18px;display:flex;flex-direction:column;gap:8px">
+            ${importantPointsList.map(pt => `<li style="color:#ffffff;font-size:0.875rem;line-height:1.45"><strong style="color:#60a5fa">●</strong> ${escapeHtml(pt)}</li>`).join('')}
+           </ul>`
+        : `<p style="font-size:.8rem;color:var(--clr-text-dim)">No voiced summary points extracted yet. Speak or simulate questions and click Generate.</p>`;
+
       container.innerHTML = `
+        <div class="summary-section" style="background:rgba(37,99,235,0.08);border:1px solid rgba(59,130,246,0.35);border-radius:8px;padding:14px;margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div class="summary-section-title" style="color:#93c5fd;font-weight:700;display:flex;align-items:center;gap:6px">
+              <span style="font-size:0.75rem;font-weight:700">SUMMARY:</span> KEY EXECUTIVE SUMMARY POINTS (VOICED TRANSCRIPT)
+            </div>
+            <button class="btn btn-ghost btn-xs" onclick="copyImportantSummaryPoints()" style="color:#93c5fd;border:1px solid rgba(59,130,246,0.4)">Copy Points</button>
+          </div>
+          ${pointsHtml}
+        </div>
+
+        ${s.executive_summary ? `
+        <div class="summary-section" style="margin-bottom:14px">
+          <div class="summary-section-title">Executive Summary</div>
+          <div style="font-size:0.85rem;color:#e2e8f0;line-height:1.5;background:#18181b;padding:10px 12px;border-radius:6px;border:1px solid var(--clr-border)">
+            ${escapeHtml(s.executive_summary)}
+          </div>
+        </div>` : ''}
+
         <div class="summary-section">
           <div class="summary-section-title">Narrative Overview</div>
-          <div class="summary-text" id="editable-summary" contenteditable="true" style="border:1px solid var(--clr-border);border-radius:4px;padding:10px">${escapeHtml(s.summary_text)}</div>
+          <div class="summary-text" id="editable-summary" contenteditable="true" style="border:1px solid var(--clr-border);border-radius:4px;padding:10px">${escapeHtml(s.summary_text || '')}</div>
         </div>
 
         <div class="summary-section">
@@ -2398,10 +2830,19 @@
         </div>
 
         <div style="display:flex;gap:8px;margin-top:12px">
-          <button class="btn btn-secondary btn-sm" onclick="copyFollowUpEmail('${(s.follow_up_draft || '').replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">📋 Copy Email Draft</button>
+          <button class="btn btn-secondary btn-sm" onclick="copyFollowUpEmail('${(s.follow_up_draft || '').replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">Copy Email Draft</button>
         </div>
       `;
     }
+
+    window.copyImportantSummaryPoints = () => {
+      const items = Array.from(document.querySelectorAll('#summary-content li')).map(li => `- ${li.textContent.trim().replace(/^●\s*/, '')}`).join('\n');
+      if (!items) {
+        toast('No summary points to copy', 'info');
+        return;
+      }
+      navigator.clipboard.writeText(items).then(() => toast('Important Summary Points copied to clipboard.', 'success'));
+    };
 
     window.copyFollowUpEmail = (text) => {
       navigator.clipboard.writeText(text).then(() => toast('Follow-up email copied to clipboard!', 'success'));
@@ -2419,39 +2860,37 @@
 
     // ── Participants Modal ─────────────────────────────────────────────
     window.showParticipantsModal = () => {
+      const activePeers = (connectedParticipants && connectedParticipants.length > 0)
+        ? connectedParticipants
+        : [
+            { name: currentActiveSpeaker || 'You (Host)', role: 'host' },
+            { name: 'Sarah Chen', role: 'attendee' },
+            { name: 'David Miller', role: 'attendee' }
+          ];
+
+      const listHtml = activePeers.map(p => {
+        const isMe = p.client_id === myClientId || p.name === currentActiveSpeaker;
+        const initials = (p.name || 'P').split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase() || 'P';
+        const isHost = (p.role || '').toLowerCase() === 'host' || isMe;
+        return `
+          <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--clr-border)">
+            <div class="avatar-circle" style="width:36px;height:36px;font-size:.9rem;background:${isMe ? '#2563eb' : '#374151'};color:#fff">${initials}</div>
+            <div>
+              <div style="font-weight:700;color:#ffffff">${escapeHtml(p.name)} ${isMe ? '<span style="font-size:.72rem;color:#60a5fa">(You)</span>' : ''}</div>
+              <div style="font-size:.75rem;color:var(--clr-text-dim)">${isHost ? 'Host / Organizer' : 'Participant'} · Live Connected</div>
+            </div>
+            <span class="badge" style="margin-left:auto;background:${isHost ? '#10b981' : '#2563eb'};color:#ffffff">${(p.role || 'ATTENDEE').toUpperCase()}</span>
+          </div>
+        `;
+      }).join('');
+
       showModal(`
         <div class="modal-header">
-          <h3>Meeting Attenders (3)</h3>
-          <button class="btn btn-ghost btn-icon" onclick="this.closest('.modal-overlay').remove()">✕</button>
+          <h3>Meeting Attenders (${activePeers.length})</h3>
+          <button class="btn btn-ghost btn-icon" onclick="this.closest('.modal-overlay').remove()">&times;</button>
         </div>
         <div class="modal-body" style="gap:12px">
-          <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--clr-border)">
-            <div class="avatar-circle" style="width:36px;height:36px;font-size:.9rem">YOU</div>
-            <div>
-              <div style="font-weight:700;color:#ffffff">You (Host)</div>
-              <div style="font-size:.75rem;color:var(--clr-text-dim)">Organizer · Microphone active</div>
-            </div>
-            <span class="badge" style="margin-left:auto">HOST</span>
-          </div>
-
-          <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--clr-border)">
-            <div class="avatar-circle" style="width:36px;height:36px;font-size:.9rem">SC</div>
-            <div>
-              <div style="font-weight:700;color:#ffffff">Sarah Chen</div>
-              <div style="font-size:.75rem;color:var(--clr-text-dim)">VP Engineering · Acme Corp</div>
-            </div>
-            <span class="badge" style="margin-left:auto">ATTENDER</span>
-          </div>
-
-          <div style="display:flex;align-items:center;gap:12px;padding:8px 0">
-            <div class="avatar-circle" style="width:36px;height:36px;font-size:.9rem">DM</div>
-            <div>
-              <div style="font-weight:700;color:#ffffff">David Miller</div>
-              <div style="font-size:.75rem;color:var(--clr-text-dim)">Director of Procurement</div>
-            </div>
-            <span class="badge" style="margin-left:auto">ATTENDER</span>
-          </div>
-
+          ${listHtml}
           <div style="margin-top:16px;background:#141417;padding:12px;border:1px solid var(--clr-border);border-radius:4px">
             <div style="font-size:.75rem;font-weight:700;color:var(--clr-text-muted);margin-bottom:6px">SHARE INVITE LINK</div>
             <div style="display:flex;gap:8px">
