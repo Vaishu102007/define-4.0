@@ -4,8 +4,13 @@ from app.core.config import get_settings
 
 settings = get_settings()
 
-# Support both sqlite (dev) and postgresql (prod)
+# Support both sqlite (dev) and postgresql (prod / Railway / Supabase)
 DB_URL = settings.DATABASE_URL
+if DB_URL.startswith("postgres://"):
+    DB_URL = DB_URL.replace("postgres://", "postgresql+psycopg://", 1)
+elif DB_URL.startswith("postgresql://") and not DB_URL.startswith("postgresql+"):
+    DB_URL = DB_URL.replace("postgresql://", "postgresql+psycopg://", 1)
+
 if DB_URL.startswith("postgresql+psycopg://"):
     engine = create_async_engine(DB_URL, pool_pre_ping=True, pool_size=10, max_overflow=20)
 elif DB_URL.startswith("sqlite"):
