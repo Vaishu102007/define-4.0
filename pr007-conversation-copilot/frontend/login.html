@@ -734,7 +734,7 @@
             sessionId: res.session_id
           }));
         }
-        const fullUrl = window.location.origin + (res.meeting_url || `/session/${res.session_id}`);
+        const fullUrl = window.location.origin + '/session.html?id=' + res.session_id;
         showMeetingCreatedModal(res.session_id, fullUrl, res.meeting_code);
       } catch (err) {
         if (errEl) {
@@ -774,7 +774,7 @@
             <span style="font-size:0.82rem;color:#94a3b8">ROOM CODE:</span>
             <strong style="font-family:var(--font-mono);font-size:1.1rem;color:#ffffff;letter-spacing:0.08em">${roomCode}</strong>
           </div>
-          <button onclick="window.location.href='/session/${sessionId}'" style="width:100%;background:#ffffff;color:#000000;font-weight:800;font-size:0.95rem;padding:12px;border-radius:10px;border:none;cursor:pointer">
+          <button onclick="window.location.href='/session.html?id=${sessionId}'" style="width:100%;background:#ffffff;color:#000000;font-weight:800;font-size:0.95rem;padding:12px;border-radius:10px;border:none;cursor:pointer">
             Enter Meeting Room Now →
           </button>
         </div>

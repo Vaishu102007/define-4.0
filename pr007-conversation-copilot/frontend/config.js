@@ -1,15 +1,29 @@
 /**
  * Nimad Copilot — Runtime Environment Configuration
  * 
- * By default, Nimad uses relative endpoints (window.location.origin), which works
- * automatically with:
+ * Supports:
  *   1. Direct FastAPI serving (http://127.0.0.1:8000)
- *   2. Cloudflare Tunnel (https://your-tunnel.trycloudflare.com)
- *   3. Cloudflare Pages with Functions API reverse-proxy
- * 
- * If hosting frontend on Cloudflare Pages and backend on a separate domain (e.g., Render, Fly.io, or VPS),
- * uncomment and set your backend URL below:
+ *   2. Cloudflare Worker Edge Proxy (/api/* and /ws/*)
+ *   3. Cloudflare Quick Tunnel (https://*.trycloudflare.com)
+ *   4. Query parameter override: ?api=https://your-backend.trycloudflare.com
  */
 
-// window.__COPILOT_API_BASE__ = 'https://api.your-domain.com';
-// window.__COPILOT_WS_HOST__ = 'api.your-domain.com';
+(function () {
+  try {
+    var params = new URLSearchParams(window.location.search);
+    var apiOverride = params.get('api') || params.get('backend');
+    if (apiOverride) {
+      var cleaned = apiOverride.replace(/\/$/, '');
+      localStorage.setItem('copilot_api_base', cleaned);
+    }
+  } catch (e) {}
+
+  var savedBase = localStorage.getItem('copilot_api_base');
+  if (savedBase) {
+    window.__COPILOT_API_BASE__ = savedBase;
+    try {
+      var u = new URL(savedBase);
+      window.__COPILOT_WS_HOST__ = u.host;
+    } catch (_) {}
+  }
+})();

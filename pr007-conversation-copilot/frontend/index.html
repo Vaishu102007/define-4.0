@@ -1424,7 +1424,7 @@
             sessionId: res.session_id
           }));
         }
-        const fullUrl = window.location.origin + (res.meeting_url || `/session/${res.session_id}`);
+        const fullUrl = window.location.origin + '/session.html?id=' + res.session_id;
         showMeetingCreatedModal(res.session_id, fullUrl, res.meeting_code);
       } catch (err) {
         if (errEl) {
@@ -1465,7 +1465,7 @@
           }));
         }
         btn.textContent = 'Entering Room…';
-        window.location.href = res.meeting_url || `/session/${res.session_id}`;
+        window.location.href = '/session.html?id=' + res.session_id;
       } catch (err) {
         errEl.textContent = 'Could not join meeting: ' + err.message;
         errEl.style.display = 'block';
@@ -1754,7 +1754,7 @@
             sessionId: res.session_id
           }));
         }
-        const fullUrl = window.location.origin + (res.meeting_url || `/session/${res.session_id}`);
+        const fullUrl = window.location.origin + '/session.html?id=' + res.session_id;
         showMeetingCreatedModal(res.session_id, fullUrl, res.meeting_code);
       } catch (err) {
         alert('Could not create meeting: ' + err.message);
@@ -1798,7 +1798,7 @@
           </div>
 
           <div style="display:flex;gap:10px">
-            <button onclick="window.location.href='/session/${sessionId}'" style="flex:1;background:#ffffff;color:#000000;font-weight:800;font-size:0.95rem;padding:12px;border-radius:10px;border:none;cursor:pointer;box-shadow:0 0 20px rgba(255,255,255,0.2)">
+            <button onclick="window.location.href='/session.html?id=${sessionId}'" style="flex:1;background:#ffffff;color:#000000;font-weight:800;font-size:0.95rem;padding:12px;border-radius:10px;border:none;cursor:pointer;box-shadow:0 0 20px rgba(255,255,255,0.2)">
               Enter Meeting Room Now →
             </button>
           </div>

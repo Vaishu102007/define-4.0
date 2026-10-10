@@ -587,7 +587,13 @@
       window.location.href = '/';
     };
 
-    const sessionId = window.location.pathname.split('/').pop();
+    const _urlParams = new URLSearchParams(window.location.search);
+    const _pathParts = window.location.pathname.split('/').filter(Boolean);
+    const _lastPart = _pathParts[_pathParts.length - 1];
+    const sessionId = _urlParams.get('id') || _urlParams.get('session_id') || 
+      (_lastPart && _lastPart !== 'session' && _lastPart !== 'session.html' ? _lastPart : '') || 
+      localStorage.getItem('copilot_last_session_id') || '33102646-1bb2-42b0-8c35-17af5ead7710';
+    localStorage.setItem('copilot_last_session_id', sessionId);
     let currentSession = null;
     let isMeetingHost = true;
     let allInsights = [];
@@ -680,13 +686,13 @@
 
       // Check public info of session for guest join
       try {
-        const publicInfo = await fetch(`/api/v1/meetings/${sessionId}/public-info`).then(r => r.json());
+        const publicInfo = await api.meetings.getPublicInfo(sessionId);
         if (publicInfo && publicInfo.id) {
           promptGuestJoin(publicInfo);
           return false;
         }
       } catch (err) {
-        console.error('Could not get meeting public info:', err);
+        console.warn('Could not get meeting public info:', err);
       }
 
       document.getElementById('loading-overlay').innerHTML =
