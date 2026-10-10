@@ -2,22 +2,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    // 1. Clean route rewrites for static pages
-    if (url.pathname === '/dashboard') {
-      return env.ASSETS.fetch(new Request(new URL('/dashboard.html', request.url), request));
-    }
-    if (url.pathname === '/login') {
-      return env.ASSETS.fetch(new Request(new URL('/login.html', request.url), request));
-    }
-    if (url.pathname === '/integrations') {
-      return env.ASSETS.fetch(new Request(new URL('/integrations.html', request.url), request));
-    }
-    if (url.pathname.startsWith('/session/') || url.pathname === '/session') {
-      const target = new URL('/session.html' + url.search, request.url);
-      return env.ASSETS.fetch(new Request(target, request));
-    }
-
-    // 2. API Proxy and Edge Fallback (Prevent HTTP 404 on Cloudflare)
+    // 1. API routes & Edge Mock Fallback (Prevent HTTP 404s on API endpoints)
     if (url.pathname.startsWith('/api/') || url.pathname === '/healthz') {
       const corsHeaders = {
         'Content-Type': 'application/json',
@@ -30,7 +15,7 @@ export default {
         return new Response(null, { headers: corsHeaders });
       }
 
-      // If a public remote backend (e.g. Cloudflare Tunnel or HTTPS server) is configured:
+      // If remote backend configured (e.g. Cloudflare tunnel or HTTPS VPS):
       const backendUrl = env.BACKEND_URL;
       const isRemoteBackend = backendUrl && !backendUrl.includes('127.0.0.1') && !backendUrl.includes('localhost');
 
@@ -40,13 +25,12 @@ export default {
           const reqHeaders = new Headers(request.headers);
           reqHeaders.set('Host', new URL(backendUrl).host);
 
-          const backendResp = await fetch(new Request(target, {
+          return await fetch(new Request(target, {
             method: request.method,
             headers: reqHeaders,
             body: ['GET', 'HEAD'].includes(request.method) ? undefined : request.body,
             redirect: 'follow',
           }));
-          return backendResp;
         } catch (err) {
           console.error('Remote backend proxy error, falling back to edge responses:', err);
         }
@@ -143,7 +127,26 @@ export default {
       }
     }
 
-    // 3. Fallback to static assets
-    return env.ASSETS.fetch(request);
+    // 2. SPA Route Rewrite for clean meeting URLs (/session/:id)
+    if (url.pathname.startsWith('/session/') && !url.pathname.includes('.')) {
+      const parts = url.pathname.split('/').filter(Boolean);
+      const sId = parts[1] || '';
+      const sessionUrl = new URL(`/session.html?id=${sId}`, request.url);
+      return env.ASSETS.fetch(new Request(sessionUrl, request));
+    }
+
+    // 3. Serve static asset directly
+    const assetResponse = await env.ASSETS.fetch(request);
+
+    // If Cloudflare Assets returned a 3xx redirect to the exact same path, break the redirect loop
+    if ([301, 302, 307, 308].includes(assetResponse.status)) {
+      const loc = assetResponse.headers.get('Location') || '';
+      if (loc === url.pathname || loc === url.href || loc.endsWith(url.pathname)) {
+        const directUrl = new URL(url.pathname.endsWith('.html') ? url.pathname : url.pathname + '.html', request.url);
+        return env.ASSETS.fetch(new Request(directUrl, request));
+      }
+    }
+
+    return assetResponse;
   }
 };
