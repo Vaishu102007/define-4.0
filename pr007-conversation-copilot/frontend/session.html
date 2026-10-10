@@ -121,8 +121,9 @@
             <div class="audio-wave">
               <span></span><span></span><span></span><span></span>
             </div>
+          <div id="hand-raised-badge-local" style="display:none;position:absolute;top:10px;right:10px;z-index:10;background:#eab308;color:#000000;font-weight:900;font-size:0.72rem;padding:3px 10px;border-radius:20px;box-shadow:0 0 16px rgba(234,179,8,0.7);align-items:center;gap:4px">
+            <span>✋</span> HAND RAISED
           </div>
-
           <div class="tile-tag">
             <span id="local-mic-icon" style="font-size:0.65rem;font-weight:800;background:#27272a;color:#ffffff;padding:1px 4px;border-radius:3px">MIC</span>
             <span id="local-tile-label">You (Host)</span>
@@ -377,6 +378,10 @@
           <span class="neon-pad neon-pad-xs neon-pad-silver"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg></span>
           SUMMARY
         </button>
+        <button class="sidebar-tab" id="stab-chat" onclick="switchSidebarTab('chat')" title="Google Meet In-Call Chat">
+          <span class="neon-pad neon-pad-xs neon-pad-cyan"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+          CHAT (<span id="chat-count">2</span>)
+        </button>
       </div>
 
       <!-- Tab 1: Live Easy Answers & Smart Suggestions -->
@@ -492,6 +497,37 @@
         </div>
       </div>
 
+      <!-- Tab 7: In-Call Live Chat (Google Meet Feature) -->
+      <div class="sidebar-content" id="panel-chat" style="display:none;flex-direction:column;gap:10px;height:100%">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:8px;border-bottom:1px solid var(--clr-border)">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:0.9rem">💬</span>
+            <span style="font-size:0.78rem;font-weight:800;color:#ffffff">IN-CALL CHAT</span>
+          </div>
+          <span style="font-size:0.7rem;color:#60a5fa;background:rgba(59,130,246,0.1);padding:2px 6px;border-radius:4px;border:1px solid rgba(59,130,246,0.25)">Google Meet Feature</span>
+        </div>
+        <div id="incall-chat-messages" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-right:4px">
+          <div class="chat-msg" style="background:#141418;padding:8px 12px;border-radius:8px;border:1px solid var(--clr-border)">
+            <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+              <span style="font-size:0.72rem;font-weight:800;color:#60a5fa">Sarah Chen (VP Eng)</span>
+              <span style="font-size:0.65rem;color:#71717a">00:01:15</span>
+            </div>
+            <div style="font-size:0.8rem;color:#e4e4e7">"Sharing our pilot architecture checklist with the team."</div>
+          </div>
+          <div class="chat-msg" style="background:#141418;padding:8px 12px;border-radius:8px;border:1px solid var(--clr-border)">
+            <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+              <span style="font-size:0.72rem;font-weight:800;color:#a855f7">David Miller (Procurement)</span>
+              <span style="font-size:0.65rem;color:#71717a">00:02:40</span>
+            </div>
+            <div style="font-size:0.8rem;color:#e4e4e7">"Confirming security and SOC2 review is scheduled for Friday."</div>
+          </div>
+        </div>
+        <form onsubmit="submitInCallChat(event)" style="display:flex;gap:6px;margin-top:auto;padding-top:8px;border-top:1px solid var(--clr-border)">
+          <input id="incall-chat-input" class="form-input" type="text" placeholder="Send a message to everyone in the call…" style="flex:1;font-size:0.8rem;padding:7px 10px" />
+          <button type="submit" class="btn btn-primary btn-sm" style="background:#2563eb;color:#ffffff;border:none;font-weight:800;padding:6px 12px">Send</button>
+        </form>
+      </div>
+
       <!-- Copilot Chat Prompt Box (Matching Reference Image) -->
       <div class="copilot-chat-footer">
         <div class="copilot-input-wrapper">
@@ -526,11 +562,26 @@
         </button>
       </div>
 
-      <!-- Sharing / STT controls -->
+      <!-- Sharing / STT / Google Meet controls -->
       <div class="dock-group">
         <button class="dock-btn" id="dock-share-btn" onclick="toggleScreenShare()">
           <span class="dock-icon neon-pad neon-pad-xs neon-pad-silver"><svg viewBox="0 0 24 24"><path d="M2 3h20v14H2zM8 21h8M12 17v4"/></svg></span>
           <span id="share-label">Share Screen</span>
+        </button>
+
+        <button class="dock-btn" id="dock-raise-hand-btn" onclick="toggleRaiseHand()" title="Raise Hand (Google Meet feature)">
+          <span class="dock-icon neon-pad neon-pad-xs neon-pad-amber" id="raise-hand-icon">✋</span>
+          <span id="raise-hand-label">Raise Hand</span>
+        </button>
+
+        <button class="dock-btn" id="dock-chat-btn" onclick="switchSidebarTab('chat')" title="In-Call Chat (Google Meet feature)">
+          <span class="dock-icon neon-pad neon-pad-xs neon-pad-cyan"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+          <span id="chat-label">Chat</span>
+        </button>
+
+        <button class="dock-btn" id="dock-layout-btn" onclick="cycleMeetingLayout()" title="Toggle Grid / Spotlight / Sidebar layout">
+          <span class="dock-icon neon-pad neon-pad-xs neon-pad-silver">⊞</span>
+          <span id="layout-label">Grid</span>
         </button>
 
         <button class="dock-btn active" id="dock-stt-btn" onclick="toggleSpeechRecognition()" title="Transcribe microphone speech live">
@@ -2864,12 +2915,121 @@
 
     // ── Sidebar Tabs ───────────────────────────────────────────────────
     window.switchSidebarTab = (tab) => {
-      ['easy-answers', 'insights', 'decisions', 'transcript', 'actions', 'summary'].forEach(t => {
+      ['easy-answers', 'insights', 'decisions', 'transcript', 'actions', 'summary', 'chat'].forEach(t => {
         const panel = document.getElementById(`panel-${t}`);
         const tabBtn = document.getElementById(`stab-${t}`);
         if (panel) panel.style.display = t === tab ? 'flex' : 'none';
         if (tabBtn) tabBtn.classList.toggle('active', t === tab);
       });
+      // Auto-focus chat input when switching to chat
+      if (tab === 'chat') {
+        setTimeout(() => document.getElementById('incall-chat-input')?.focus(), 50);
+      }
+    };
+
+    // ── Google Meet Features: Raise Hand, In-Call Chat & Layout ───────
+    let isHandRaised = false;
+    let meetingLayoutMode = 'grid'; // 'grid' | 'spotlight' | 'sidebar'
+
+    window.toggleRaiseHand = () => {
+      isHandRaised = !isHandRaised;
+      const badge = document.getElementById('hand-raised-badge-local');
+      const label = document.getElementById('raise-hand-label');
+      const btn = document.getElementById('dock-raise-hand-btn');
+
+      if (badge) badge.style.display = isHandRaised ? 'inline-flex' : 'none';
+      if (label) label.textContent = isHandRaised ? 'Lower Hand' : 'Raise Hand';
+      if (btn) btn.classList.toggle('active', isHandRaised);
+
+      // Play soft chime tone
+      playAudioTone(isHandRaised ? [587.33, 880] : [880, 587.33]);
+      toast(isHandRaised ? '✋ You raised your hand' : 'Hand lowered', 'info', 2000);
+
+      // Broadcast over WebSocket if connected
+      if (meetingWs && meetingWs.readyState === WebSocket.OPEN) {
+        meetingWs.send(JSON.stringify({
+          type: 'hand_raise',
+          speaker: currentActiveSpeaker,
+          raised: isHandRaised
+        }));
+      }
+    };
+
+    function playAudioTone(freqs) {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        freqs.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, ctx.currentTime + (idx * 0.12));
+          gain.gain.setValueAtTime(0.12, ctx.currentTime + (idx * 0.12));
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + (idx * 0.12) + 0.25);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(ctx.currentTime + (idx * 0.12));
+          osc.stop(ctx.currentTime + (idx * 0.12) + 0.25);
+        });
+      } catch (_) {}
+    }
+
+    window.submitInCallChat = (e) => {
+      if (e) e.preventDefault();
+      const input = document.getElementById('incall-chat-input');
+      const text = (input?.value || '').trim();
+      if (!text) return;
+
+      input.value = '';
+      const feed = document.getElementById('incall-chat-messages');
+      if (!feed) return;
+
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const msgEl = document.createElement('div');
+      msgEl.className = 'chat-msg';
+      msgEl.style.cssText = 'background:#1c1d24;padding:8px 12px;border-radius:8px;border:1px solid #3b82f6;margin-top:4px';
+      msgEl.innerHTML = `
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+          <span style="font-size:0.72rem;font-weight:800;color:#93c5fd">${escapeHtml(currentActiveSpeaker || 'You (Host)')}</span>
+          <span style="font-size:0.65rem;color:#71717a">${timeStr}</span>
+        </div>
+        <div style="font-size:0.8rem;color:#ffffff">${escapeHtml(text)}</div>
+      `;
+      feed.appendChild(msgEl);
+      feed.scrollTop = feed.scrollHeight;
+
+      // Update badge count
+      const chatCount = document.getElementById('chat-count');
+      if (chatCount) {
+        chatCount.textContent = String(parseInt(chatCount.textContent || '0', 10) + 1);
+      }
+    };
+
+    window.cycleMeetingLayout = () => {
+      const grid = document.getElementById('video-grid');
+      const label = document.getElementById('layout-label');
+      if (!grid) return;
+
+      if (meetingLayoutMode === 'grid') {
+        meetingLayoutMode = 'spotlight';
+        grid.style.gridTemplateColumns = '1fr';
+        document.querySelectorAll('.participant-tile').forEach((t, i) => {
+          t.style.display = i === 0 ? 'flex' : 'none';
+        });
+        if (label) label.textContent = 'Spotlight';
+        toast('Layout changed to Spotlight View (Google Meet style)', 'info', 2000);
+      } else if (meetingLayoutMode === 'spotlight') {
+        meetingLayoutMode = 'sidebar';
+        grid.style.gridTemplateColumns = '2fr 1fr';
+        document.querySelectorAll('.participant-tile').forEach(t => t.style.display = 'flex');
+        if (label) label.textContent = 'Sidebar';
+        toast('Layout changed to Sidebar View (Google Meet style)', 'info', 2000);
+      } else {
+        meetingLayoutMode = 'grid';
+        grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(280px, 1fr))';
+        document.querySelectorAll('.participant-tile').forEach(t => t.style.display = 'flex');
+        if (label) label.textContent = 'Grid';
+        toast('Layout changed to Tiled Grid View (Google Meet style)', 'info', 2000);
+      }
     };
 
     // ── Participants Modal ─────────────────────────────────────────────
